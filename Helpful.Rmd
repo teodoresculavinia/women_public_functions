@@ -1,0 +1,24 @@
+---
+title: "Untitled"
+author: "Lavinia Teodorescu"
+date: "10/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+
+x <- mtcars
+
+saveRDS(x, file = "x.RDS")
+
+x <- readRDS("x.RDS")
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(shinythemes)
+```
+
