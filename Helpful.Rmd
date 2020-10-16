@@ -16,6 +16,17 @@ saveRDS(x, file = "x.RDS")
 x <- readRDS("x.RDS")
 
 knitr::opts_chunk$set(echo = TRUE)
+
+saveRDS(ada_request_2018_2020, file = "shiny/data/ada_request_2018_2020.rds")
+
+x <- readRDS(file = "shiny/data/ada_request_2018_2020.rds")
+
+
+
+ h1()
+ h6()
+                   b()
+                   I()
 ```
 
 ```{r}

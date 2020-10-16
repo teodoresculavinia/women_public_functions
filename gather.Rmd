@@ -1,0 +1,40 @@
+---
+title: "gather"
+author: "Lavinia Teodorescu"
+date: "10/17/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+
+
+```{r}
+
+library(readr)
+library(stringr)
+
+recent_ILO_LFP <- read_csv("raw_data/recent-ILO-LFP.csv")
+View(recent_ILO_LFP)
+
+saveRDS(recent_ILO_LFP, file = "shiny-app/data/ILO_LFP.rds")
+
+x <- readRDS(file = "shiny-app/data/ILO_LFP.rds")
+
+x %>%
+  rename("female_labor" = `Labor force participation rate, female (% of female population ages 15+) (modeled ILO estimate)`) %>%
+  group_by(Entity) %>%
+  summarize(avg = mean(female_labor), .groups = "drop") %>%
+  filter(str_detect(Entity, "^R")) %>%
+  
+ggplot(mapping = aes(x = Entity, y = avg)) +
+  geom_point()
+
+
+
+
+```
+
