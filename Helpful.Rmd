@@ -25,8 +25,14 @@ x <- readRDS(file = "shiny/data/ada_request_2018_2020.rds")
 
  h1()
  h6()
-                   b()
-                   I()
+ b()
+ I()
+ 
+ 
+ # number of chr?
+ # two datasets?
+ # how to bold?
+ # does it look okay, am I missing something that would be graded?
 ```
 
 ```{r}
