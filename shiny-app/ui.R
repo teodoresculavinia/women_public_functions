@@ -69,7 +69,14 @@ shinyUI(
                     p("No post-communist country has a percentage of women of 
                       over 35%. That is counter-intuitive to what I expected, 
                       as one of the principle of communism is gender equality
-                      in the workforce"))) 
+                      in the workforce"))), 
+
+        tabPanel(
+          "European Parliament Data",
+          plotOutput("parliament2Plot"),
+          p("This dataset, similarly to the one in the previous tab, shows 
+            the difference in Europe in percentage of women in public jobs
+            in Western (never Communist) vs. Eastern (post Communist) countries")) 
                     
 
     ))

@@ -3,39 +3,44 @@ title: "gather"
 author: "Lavinia Teodorescu"
 date: "10/17/2020"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
 library(tidyverse)
 library(tidytext)
 library(readr)
 library(readxl)
 library(stringr)
+library(leaflet)
+library(maptools)
 ```
 
 
 
 ```{r}
-
-
-
 recent_ILO_LFP <- read_csv("raw_data/recent-ILO-LFP.csv")
-View(recent_ILO_LFP)
-
 saveRDS(recent_ILO_LFP, file = "shiny-app/data/ILO_LFP.rds")
-
 x <- readRDS(file = "shiny-app/data/ILO_LFP.rds")
 
+
 idea_export_35_5f8a138aec279 <- read_csv("raw_data/idea_export_35_5f8a138aec279.csv")
-View(idea_export_35_5f8a138aec279)
-
 saveRDS(idea_export_35_5f8a138aec279, file = "shiny-app/data/political_structure_country.rds")
-
 y <- readRDS(file = "shiny-app/data/political_structure_country.rds")
 
+data <- read_csv("raw_data/data.csv")
+saveRDS(data, file = "shiny-app/data/country_by_continent.rds")
+country_by_continent <- readRDS(file = "shiny-app/data/country_by_continent.rds")
+
+ilostat_2020_11_13_2 <- read_csv("raw_data/ilostat-2020-11-13-2.csv")
+saveRDS(ilostat_2020_11_13_2, file = "shiny-app/data/employment_sex_sector.rds")
+employment_sex_sector <- readRDS(file = "shiny-app/data/employment_sex_sector.rds")
+```
+
+
+```{r}
 x %>%
   rename("female_labor" = `Labor force participation rate, female (% of female population ages 15+) (modeled ILO estimate)`) %>%
   
@@ -73,16 +78,10 @@ ggplot(mapping = aes(x = reorder_within(Entity, within = avg, by = avg), y = avg
 ```
 
 
-
 ```{r}
 women_in_parliament_2008 <- read_excel("raw_data/cpdsIIc/Women in Parliament UPDATED 2008.xls")
-  View(women_in_parliament_2008)
   
 CPDS_1960_2018 <- read_excel("raw_data/CPDS_1960-2018_Update_2020.xlsx")
-View(CPDS_1960_2018)
-
-
-CPDS_1960_2018
 
 post_comm_list <- read_excel("raw_data/cpdsIIc/Women in Parliament UPDATED 2008.xls") %>%
   mutate(post_comm = "TRUE") %>%
@@ -115,6 +114,99 @@ post_comm_list %>%
           y = "Percentage of Women in Parliament", 
           caption = "\n  \n Source: CPDS") +
     theme(axis.text.x = element_text(angle=30))
+
+# To have one boxplot w/ post comm, never comm and currently comm
+
+```
+
+
+```{r}
+
+post_comm_list %>%
+  rename("year" = 'year...1') %>%
+  filter(year == 2018) %>%
+  ggplot(aes(x = post_comm, y = womenpar, color = post_comm)) +
+  geom_boxplot() +
+  scale_x_reordered() +
+    theme_linedraw() +
+    theme(panel.grid.major = element_line(color = "lightgrey"),
+        panel.grid.minor = element_line(color = "lightgrey"),
+        panel.background = element_rect(fill = "white"),
+        panel.border = element_rect(color = "grey", fill = NA)) +
+  scale_color_discrete(name = "Communist Status", 
+                       labels = c("Never Communist", "Post-Communist"))+
+    labs(title = "Women in Parliament: Never Communist v. Post- Communist Countries", 
+          x = "OECD Countries", 
+          y = "Percentage of Women in Parliament", 
+          caption = "\n  \n Source: CPDS") +
+    theme(axis.text.x = element_text(angle=30))
+
+```
+
+
+```{r}
+
+country_by_continent <- readRDS(file = "shiny-app/data/country_by_continent.rds")
+country_by_continent <- country_by_continent %>%
+  rename(country_code = "Three_Letter_Country_Code") %>%
+  select(country_code, Continent_Name)
+
+employment_sex_sector_edit <- employment_sex_sector %>%
+  select(ref_area, ref_area.label, sex, classif1, time, obs_value) %>%
+  rename("country_code" = "ref_area") 
+
+employment_sex_continent <- left_join(employment_sex_sector_edit, country_by_continent, by = "country_code") 
+
+employment_sex_continent %>%
+  filter(sex == "SEX_F") %>%
+  filter(classif1 == "INS_SECTOR_PUB") %>%
+  filter(Continent_Name %in% c("Asia", "Africa", "North America", "Oceania", "South America", "Europe")) %>%
+  filter(!is.na(obs_value)) %>%
+  ggplot(aes(x = Continent_Name, y = obs_value)) +
+  geom_col()
+```
+
+```{r}
+
+map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
+  distinct(country, .keep_all = TRUE)%>%
+  rename(ISO3 = "iso")
+
+data(wrld_simpl)
+
+world_simple_comm <- wrld_simpl@data %>%
+  left_join(map_post_comm, by = "ISO3")
+
+data(world_simple_comm)
+map <- leaflet(wrld_simpl) %>%
+  addPolygons() %>%
+  addProviderTiles(providers$CartoDB.Positron)
+map
+
+
+map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
+  distinct(country, .keep_all = TRUE) %>%
+  rename(ISO3 = "iso")
+
+# In your previous code, you assigned only the data table from wrld_smpl to world_simple_comm. You need the data table and the polygons! So, first create an identical copy of wrld_simpl:
+
+world_simple_comm <- wrld_simpl
+
+# Then edit just the data table of that identical copy:
+
+world_simple_comm@data <- world_simple_comm@data %>%
+  left_join(map_post_comm, by = "ISO3")
+
+# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
+
+
+  binpal <- colorQuantile("Blues", world_simple_comm$gov_right1, n = 7)
+  
+map <- leaflet(world_simple_comm) %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
+    color = ~binpal(gov_right1)) %>%
+  addProviderTiles(providers$CartoDB.Positron)
+map
 
 ```
 

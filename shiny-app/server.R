@@ -10,6 +10,7 @@
 
 x <- readRDS(file = "data/ILO_LFP.rds")
 post_comm_list <- readRDS(file = "data/post_comm_list.rds")
+employment_sex_sector <- readRDS(file = "data/employment_sex_sector.rds")
 
 
 # Define server logic required to draw a histogram
@@ -78,7 +79,30 @@ shinyServer(function(input, output) {
              y = "Percentage of Women in Parliament", 
              caption = "\n  \n Source: CPDS") +
         theme(axis.text.x = element_text(angle = 30))
+
       
     })
+    
+    output$parliament2Plot <- renderPlot({
+      
+      
+      post_comm_list %>%
+        rename("year" = 'year...1') %>%
+        filter(year == 2018) %>%
+        ggplot(aes(x = post_comm, y = womenpar, color = post_comm)) +
+        geom_boxplot() +
+        scale_x_reordered() +
+        theme_linedraw() +
+        theme(panel.grid.major = element_line(color = "lightgrey"),
+              panel.grid.minor = element_line(color = "lightgrey"),
+              panel.background = element_rect(fill = "white"),
+              panel.border = element_rect(color = "grey", fill = NA)) +
+        scale_color_discrete(name = "Communist Status", 
+                             labels = c("Never Communist", "Post-Communist"))+
+        labs(title = "Women in Parliament: Never Communist v. Post- Communist Countries", 
+             x = "OECD Countries", 
+             y = "Percentage of Women in Parliament", 
+             caption = "\n  \n Source: CPDS") +
+        theme(axis.text.x = element_text(angle=30))})
 
 })
