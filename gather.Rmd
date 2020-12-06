@@ -77,156 +77,6 @@ employment_pay <- readRDS(file = "shiny-app/data/employment_pay.rds")
 # Average hourly earnings of employees by sex in local currency, by position
 ```
 
-```{r}
-graph_1 <- employment_female %>%
-  rename("female_percentage" = "Labor force participation rate, female (% of female population ages 15+) (modeled ILO estimate)") %>%
-  left_join(post_comm_list, by = c("Code" = "iso")) %>%
-  select("Entity", "Code", "Year", "female_percentage", "post_comm") %>%
-  left_join(employment_sector, by = c("Code" = "ref_area", "Year" = "time")) %>%
-  select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", "classif1", "obs_value") %>%
-  left_join(country_by_continent, by = c("Code" = "country_code")) %>%
-  select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", "classif1", "obs_value", "Continent_Name") %>%
-  unique() %>%
-  
-  mutate(post_comm = ifelse(Code %in% c("CHN", "VNM", "LAO", "CUB", "PRK"), "NOW", post_comm)) %>%
-  mutate(post_comm = ifelse(is.na(post_comm), "FALSE", post_comm)) %>%
-  # replace_na(post_comm, "FALSE")
-  pivot_wider(names_from = c("sex", "classif1"), values_from = "obs_value") %>%
-  #group_by("Entity", "Year", "classif1") %>%
-  select(-"NA_NA") %>%
-  mutate(percentage_female_total = SEX_F_INS_SECTOR_TOTAL/SEX_T_INS_SECTOR_TOTAL*100) %>%
-    mutate(percentage_female_private = SEX_F_INS_SECTOR_PRI/SEX_T_INS_SECTOR_PRI*100) %>%
-    mutate(percentage_female_public = SEX_F_INS_SECTOR_PUB/SEX_T_INS_SECTOR_PUB*100)
-saveRDS(graph_1, file = "shiny-app/data/graph_1.rds")
-
-graph_1 %>%
- # filter(!is.na(percentage_female_total)) %>%
-  # filter(Year == "2000") %>%
-  ggplot(aes(x = post_comm, y = female_percentage, color = post_comm)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-  
-```
-
-```{r}
-graph_2 <- graph_1 %>%
-  filter(Year == "2017")
-
-stan_glm(formula = female_percentage ~ post_comm + Continent_Name, 
-         data = graph_2, 
-         family = gaussian(),
-         refresh = 0)
-
-#Add GDP?
-
-
-
-```
-
-
-
-```{r}
-
-map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
-  distinct(country, .keep_all = TRUE)%>%
-  rename(ISO3 = "iso")
-
-data(wrld_simpl)
-
-world_simple_comm <- wrld_simpl@data %>%
-  left_join(map_post_comm, by = "ISO3")
-
-map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
-  distinct(country, .keep_all = TRUE) %>%
-  rename(ISO3 = "iso")
-
-# In your previous code, you assigned only the data table from wrld_smpl to world_simple_comm. You need the data table and the polygons! So, first create an identical copy of wrld_simpl:
-
-world_simple_comm <- wrld_simpl
-
-# Then edit just the data table of that identical copy:
-
-world_simple_comm@data <- world_simple_comm@data %>%
-  left_join(map_post_comm, by = "ISO3")
-
-# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
-
-
-  binpal <- colorBin("Blues", world_simple_comm$gov_right1, 6, pretty = FALSE)
-  
-map <- leaflet(world_simple_comm) %>%
-  addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
-    color = ~binpal(gov_right1)) %>%
-  addProviderTiles(providers$CartoDB.Positron)
-map
-```
-
-```{r}
-employment_female %>%
-  
-  # The initial column title is to long and I can't seem to be able to put it on
-  # two lines because rename() stops working.
-  
-  group_by(Entity) %>%
-  summarize(avg = mean(female_labor), .groups = "drop") %>%
-  filter(str_detect(Entity, "^B")) %>%
-  
-  # This filters the Entity column to find all names that start with a capital
-  # B. str_detect is part of the stringr package.
-  
-ggplot(mapping = aes(x = reorder_within(Entity, within = avg, by = avg), y = avg)) +
-  geom_point() +
-  scale_x_reordered() +
-    theme_linedraw() +
-    theme(panel.grid.major = element_line(color = "lightgrey"),
-        panel.grid.minor = element_line(color = "lightgrey"),
-        panel.background = element_rect(fill = "white"),
-        panel.border = element_rect(color = "grey", fill = NA)) +
-    theme(axis.text.x = element_text(angle=30)) +
-     labs(title = "Women in the Workforce: By country (letter B)", 
-          x = "Countries", 
-          y = "Percentage of Women in the Workforce", 
-          caption = "\n  \n Source: Inter-Parliamentary Union") 
-
-# This is a combination of themes that I did in the past and really enjoyed, so
-# decided to copy it here as well. reorder_withing and scale_x_reorder helped me
-# reorger values n the x axis based on the values on the y axis.
-
-```
-
-
-```{r}
-
-average_employment <- graph_1 %>%
-  group_by(Entity) %>%
-  drop_na(percentage_female_total) %>%
-  mutate(mean_percentage_total = mean(percentage_female_total)) %>%
-  rename(ISO3 = "Code")
-  
-saveRDS(average_employment, file = "shiny-app/data/average_employment.rds")
-
-# In your previous code, you assigned only the data table from wrld_smpl to world_simple_comm. You need the data table and the polygons! So, first create an identical copy of wrld_simpl:
-
-world_simple_employment <- wrld_simpl
-
-# Then edit just the data table of that identical copy:
-
-world_simple_employment@data <- world_simple_employment@data %>%
-  left_join(average_employment, by = "ISO3")
-
-# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
-
-binpal <- colorBin("Reds", world_simple_employment$mean_percentage_total, 9, pretty = FALSE)
-  
-map_employment <- leaflet(world_simple_employment) %>%
-  addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
-    color = ~binpal(mean_percentage_total)) %>%
-  addProviderTiles(providers$CartoDB.Positron)
-map_employment
-
-
-```
-
 
 ```{r}
 women_in_parliament_2008 <- read_excel("raw_data/cpdsIIc/Women in Parliament UPDATED 2008.xls")
@@ -272,30 +122,6 @@ post_comm_list %>%
 
 ```{r}
 
-post_comm_list %>%
-  rename("year" = 'year...1') %>%
-  filter(year == 2018) %>%
-  ggplot(aes(x = post_comm, y = womenpar, color = post_comm)) +
-  geom_boxplot() +
-  scale_x_reordered() +
-    theme_linedraw() +
-    theme(panel.grid.major = element_line(color = "lightgrey"),
-        panel.grid.minor = element_line(color = "lightgrey"),
-        panel.background = element_rect(fill = "white"),
-        panel.border = element_rect(color = "grey", fill = NA)) +
-  scale_color_discrete(name = "Communist Status", 
-                       labels = c("Never Communist", "Post-Communist"))+
-    labs(title = "Women in Parliament: Never Communist v. Post- Communist Countries", 
-          x = "OECD Countries", 
-          y = "Percentage of Women in Parliament", 
-          caption = "\n  \n Source: CPDS") +
-    theme(axis.text.x = element_text(angle=30))
-
-```
-
-
-```{r}
-
 country_by_continent <- readRDS(file = "shiny-app/data/country_by_continent.rds")
 country_by_continent <- country_by_continent %>%
   rename(country_code = "Three_Letter_Country_Code") %>%
@@ -318,8 +144,178 @@ employment_sex_continent %>%
 
 
 ```{r}
+graph_1 <- employment_female %>%
+  rename("female_percentage" = "Labor force participation rate, female (% of female population ages 15+) (modeled ILO estimate)") %>%
+  left_join(post_comm_list, by = c("Code" = "iso")) %>%
+  select("Entity", "Code", "Year", "female_percentage", "post_comm") %>%
+  left_join(employment_sector, by = c("Code" = "ref_area", "Year" = "time")) %>%
+  select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", "classif1", "obs_value") %>%
+  left_join(country_by_continent, by = c("Code" = "country_code")) %>%
+  select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", "classif1", "obs_value", "Continent_Name") %>%
+  unique() %>%
+  
+  mutate(post_comm = ifelse(Code %in% c("CHN", "VNM", "LAO", "CUB", "PRK"), "NOW", post_comm)) %>%
+  mutate(post_comm = ifelse(is.na(post_comm), "FALSE", post_comm)) %>%
+  # replace_na(post_comm, "FALSE")
+  pivot_wider(names_from = c("sex", "classif1"), values_from = "obs_value") %>%
+  #group_by("Entity", "Year", "classif1") %>%
+  select(-"NA_NA") %>%
+  mutate(percentage_female_total = SEX_F_INS_SECTOR_TOTAL/SEX_T_INS_SECTOR_TOTAL*100) %>%
+    mutate(percentage_female_private = SEX_F_INS_SECTOR_PRI/SEX_T_INS_SECTOR_PRI*100) %>%
+    mutate(percentage_female_public = SEX_F_INS_SECTOR_PUB/SEX_T_INS_SECTOR_PUB*100)
+saveRDS(graph_1, file = "shiny-app/data/graph_1.rds")
+
+graph_1 %>%
+ # filter(!is.na(percentage_female_total)) %>%
+  # filter(Year == "2000") %>%
+  ggplot(aes(x = post_comm, y = female_percentage, color = post_comm)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+  
+```
+
+```{r}
+graph_2 <- graph_1 %>%
+  filter(Year == "2017")
+
+stan_glm(formula = female_percentage ~ post_comm + Continent_Name, 
+         data = graph_2, 
+         family = gaussian(),
+         refresh = 0)
+
+#Add GDP?
+```
 
 
+
+```{r}
+
+map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
+  distinct(country, .keep_all = TRUE)%>%
+  rename(ISO3 = "iso")
+
+data(wrld_simpl)
+
+world_simple_comm <- wrld_simpl@data %>%
+  left_join(map_post_comm, by = "ISO3")
+
+map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
+  distinct(country, .keep_all = TRUE) %>%
+  rename(ISO3 = "iso")
+
+# In your previous code, you assigned only the data table from wrld_smpl to world_simple_comm. You need the data table and the polygons! So, first create an identical copy of wrld_simpl:
+
+world_simple_comm <- wrld_simpl
+
+# Then edit just the data table of that identical copy:
+
+world_simple_comm@data <- world_simple_comm@data %>%
+  left_join(map_post_comm, by = "ISO3")
+
+# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
+
+
+  binpal <- colorBin("Blues", world_simple_comm$gov_right1, 6, pretty = FALSE)
+  
+map <- leaflet(world_simple_comm) %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
+    color = ~binpal(gov_right1)) %>%
+  addProviderTiles(providers$CartoDB.Positron)
+# map
+
+```
+
+```{r}
+employment_female %>%
+  
+  # The initial column title is to long and I can't seem to be able to put it on
+  # two lines because rename() stops working.
+  rename("female_percentage" = "Labor force participation rate, female (% of female population ages 15+) (modeled ILO estimate)") %>%
+  group_by(Entity) %>%
+  summarize(avg = mean(female_percentage), .groups = "drop") %>%
+  filter(str_detect(Entity, "^B")) %>%
+  
+  # This filters the Entity column to find all names that start with a capital
+  # B. str_detect is part of the stringr package.
+  
+ggplot(mapping = aes(x = reorder_within(Entity, within = avg, by = avg), y = avg)) +
+  geom_point() +
+  scale_x_reordered() +
+    theme_linedraw() +
+    theme(panel.grid.major = element_line(color = "lightgrey"),
+        panel.grid.minor = element_line(color = "lightgrey"),
+        panel.background = element_rect(fill = "white"),
+        panel.border = element_rect(color = "grey", fill = NA)) +
+    theme(axis.text.x = element_text(angle=30)) +
+     labs(title = "Women in the Workforce: By country (letter B)", 
+          x = "Countries", 
+          y = "Percentage of Women in the Workforce", 
+          caption = "\n  \n Source: Inter-Parliamentary Union") 
+
+# This is a combination of themes that I did in the past and really enjoyed, so
+# decided to copy it here as well. reorder_withing and scale_x_reorder helped me
+# reorger values n the x axis based on the values on the y axis.
+
+```
+
+
+```{r}
+
+average_employment <- graph_1 %>%
+  group_by(Entity) %>%
+  drop_na(percentage_female_total) %>%
+  mutate(mean_percentage_total = mean(percentage_female_total)) %>%
+  rename(ISO3 = "Code")
+  
+saveRDS(average_employment, file = "shiny-app/data/average_employment.rds")
+
+# In your previous code, you assigned only the data table from wrld_smpl to world_simple_comm. You need the data table and the polygons! So, first create an identical copy of wrld_simpl:
+
+world_simple_employment <- wrld_simpl
+
+# Then edit just the data table of that identical copy:
+
+world_simple_employment@data <- world_simple_employment@data %>%
+  left_join(average_employment, by = "ISO3")
+
+saveRDS(world_simple_employment, file = "shiny-app/data/world_simple_employment.rds")
+
+# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
+
+binpal <- colorBin("Reds", world_simple_employment$mean_percentage_total, 9, pretty = FALSE)
+  
+map_employment <- leaflet(world_simple_employment) %>%
+  addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
+    color = ~binpal(mean_percentage_total)) %>%
+  addProviderTiles(providers$CartoDB.Positron)
+
+map_employment
+
+
+```
+
+
+
+```{r}
+
+post_comm_list %>%
+  rename("year" = 'year...1') %>%
+  filter(year == 2018) %>%
+  ggplot(aes(x = post_comm, y = womenpar, color = post_comm)) +
+  geom_boxplot() +
+  scale_x_reordered() +
+    theme_linedraw() +
+    theme(panel.grid.major = element_line(color = "lightgrey"),
+        panel.grid.minor = element_line(color = "lightgrey"),
+        panel.background = element_rect(fill = "white"),
+        panel.border = element_rect(color = "grey", fill = NA)) +
+  scale_color_discrete(name = "Communist Status", 
+                       labels = c("Never Communist", "Post-Communist"))+
+    labs(title = "Women in Parliament: Never Communist v. Post- Communist Countries", 
+          x = "OECD Countries", 
+          y = "Percentage of Women in Parliament", 
+          caption = "\n  \n Source: CPDS") +
+    theme(axis.text.x = element_text(angle=30))
 
 ```
 

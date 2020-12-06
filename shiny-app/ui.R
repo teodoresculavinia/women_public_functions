@@ -12,6 +12,7 @@ library(tidyverse)
 library(shinythemes)
 library(stringr)
 library(tidytext)
+library(leaflet)
 
 # Define UI for application that draws a histogram
 shinyUI(
