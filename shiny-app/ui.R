@@ -15,8 +15,10 @@ library(tidytext)
 
 # Define UI for application that draws a histogram
 shinyUI(
+    
     navbarPage(theme = shinytheme("flatly"),
-        "Women in Public Functions (Post-Communist v. Never-Communist Countries)",
+        "The long-term effect of Communism on women right: Data from communist, 
+        post-communist and never-communist countries",
                tabPanel(
                    "About",
                    p("Do post-communist countries have a higher number of women
@@ -42,9 +44,25 @@ shinyUI(
                    ),
                # You would add your content within the parentheses above.
                tabPanel(
-                   "Senate Data: 'B'",
+                   "Employment",
                    titlePanel("Percentage of Women in Senate in Countries 
                               begining with 'B'"),
+                #   tags$style(
+                #       type = "text/css",
+                #       ".shiny-output-error {display: none;}",
+                #       ".shiny-output-error:before {display: none;}"
+                #   ),
+                   sidebarLayout(
+                       sidebarPanel(
+                           checkboxGroupInput(inputId = "Continent_User", 
+                                       label = "Continent", 
+                                       choices = c("Africa" = "Africa", 
+                                                   "Asia" = "Asia", 
+                                                   "Europe" = "Europe"), 
+                                       # multiple = TRUE, 
+                                       selected = c("Africa", "Asia", "Europe"))), 
+                       mainPanel(plotOutput("female_employment"))),
+                   leafletOutput("map_employment"),
                    plotOutput("senatePlot"),
                    p("This is a sample data plot that shows how widely the 
                      percentage of women in the workforce differs around the 
@@ -59,8 +77,8 @@ shinyUI(
                     communist. I am still gathering and cleaning that data.")), 
                   
                   tabPanel(
-                    "Parliament Data",
-                    plotOutput("parliamentPlot"),
+                    "Healthcare",
+                    plotOutput("Healthcare access"),
                     p("This dataset shows the difference in percentage of women
                       in Parliament in different countries that are part of the 
                       OECD. The first graph shows the countries that have never
@@ -71,12 +89,12 @@ shinyUI(
                       as one of the principle of communism is gender equality
                       in the workforce"))), 
 
-        tabPanel(
-          "European Parliament Data",
-          plotOutput("parliament2Plot"),
-          p("This dataset, similarly to the one in the previous tab, shows 
-            the difference in Europe in percentage of women in public jobs
-            in Western (never Communist) vs. Eastern (post Communist) countries")) 
+                tabPanel(
+                  "Education",
+                  plotOutput("parliament2Plot"),
+                  p("This dataset, similarly to the one in the previous tab, shows 
+                    the difference in Europe in percentage of women in public jobs
+                    in Western (never Communist) vs. Eastern (post Communist) countries")) 
                     
 
     ))

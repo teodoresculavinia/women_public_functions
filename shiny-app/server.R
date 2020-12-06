@@ -11,7 +11,8 @@
 x <- readRDS(file = "data/ILO_LFP.rds")
 post_comm_list <- readRDS(file = "data/post_comm_list.rds")
 employment_sex_sector <- readRDS(file = "data/employment_sex_sector.rds")
-
+graph_1 <- readRDS(file = "data/graph_1.rds")
+average_employment <- readRDS(file = "data/average_employment.rds")
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
@@ -56,7 +57,24 @@ shinyServer(function(input, output) {
 
     })
     
-    
+    output$female_employment <- renderLeaflet({
+      
+      world_simple_employment <- wrld_simpl
+      
+      world_simple_employment@data <- world_simple_employment@data %>%
+        left_join(average_employment, by = "ISO3")
+      
+      binpal <- colorBin("Reds", world_simple_employment$mean_percentage_total, 
+                         9, 
+                         pretty = FALSE)
+      
+      map_employment <- leaflet(world_simple_employment) %>%
+        addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
+                    color = ~binpal(mean_percentage_total)) %>%
+        addProviderTiles(providers$CartoDB.Positron)
+      map_employment
+      
+    })
     
     output$parliamentPlot <- renderPlot({
       
@@ -104,5 +122,15 @@ shinyServer(function(input, output) {
              y = "Percentage of Women in Parliament", 
              caption = "\n  \n Source: CPDS") +
         theme(axis.text.x = element_text(angle=30))})
+
+
+output$female_employment <- renderPlot({
+  
+  graph_1 %>%
+    filter(Continent_Name == input$Continent_User) %>%
+    ggplot(aes(x = post_comm, y = female_percentage, color = post_comm)) +
+    geom_point() 
+  
+})
 
 })
