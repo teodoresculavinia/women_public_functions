@@ -16,6 +16,7 @@ average_employment <- readRDS(file = "data/average_employment.rds")
 world_simple_employment <- readRDS(file = "data/world_simple_employment.rds")
 world_simple_timeline <- readRDS(file = "data/world_simple_timeline.rds")
 comm_year <- readRDS(file = "data/comm_year.rds")
+wrld_simpl <- readRDS(file = "data/wrld_simpl.rds") 
 
 
 # Define server logic required to draw a histogram
@@ -134,18 +135,17 @@ output$female_employment <- renderPlot({
 
 output$comm_timeline <- renderLeaflet ({
   
-  comm_year <- comm_year %>%
-    mutate(communist = ifelse(year_first <= 1960 & 1960 <= year_last, "yes", "no"))
-  
-  factpal <- colorFactor(c("red", "yellow"), world_simple_timeline$communist)
-  
-  map_timeline <- leaflet(world_simple_timeline) %>%
-    addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
-                color = ~factpal(communist)) %>%
-    addProviderTiles(providers$CartoDB.Positron)
-  
-  map_timeline
-  
+    world_simple_timeline <- wrld_simpl
+    world_simple_timeline@data <- comm_year %>%
+      mutate(communist = ifelse(year_first <= input$Year_User & input$Year_User <= year_last, "yes", "no")) %>%
+      right_join(world_simple_timeline@data, by = "ISO3") %>%
+      mutate(communist = ifelse(is.na(communist), "no", communist))
+    factpal <- colorFactor(c("red", "yellow"), world_simple_timeline$communist)
+    map_timeline <- leaflet(world_simple_timeline) %>%
+      addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
+                  color = ~factpal(communist)) %>%
+      addProviderTiles(providers$CartoDB.Positron)
+    map_timeline
 })
 
 })

@@ -200,6 +200,8 @@ map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
 
 data(wrld_simpl)
 
+saveRDS(wrld_simpl, file = "shiny-app/data/wrld_simpl.rds") 
+
 world_simple_comm <- wrld_simpl@data %>%
   left_join(map_post_comm, by = "ISO3")
 
@@ -325,19 +327,19 @@ post_comm_list %>%
 
 ```{r}
 
-comm_year <- comm_years %>%
+comm_years_leaf <- comm_years %>%
   left_join(graph_1, by = c("country" = "Entity"))
 
-comm_year <- comm_year %>%
+comm_years_leaf <- comm_years_leaf %>%
   select("country", "year_first", "year_last", "Code", "Continent_Name") %>%
   unique() %>%
   rename(ISO3 = "Code") %>%
   slice(-1)
   
-saveRDS(comm_year, file = "shiny-app/data/comm_year.rds")
+saveRDS(comm_years_leaf, file = "shiny-app/data/comm_years_leaf.rds")
 
-comm_year <- comm_year %>%
-  mutate(communist = ifelse(year_first <= 1980 & 1980 <= year_last, "yes", "no"))
+comm_years_leaf <- comm_years_leaf %>%
+  mutate(communist = ifelse(year_first <= 1979 & 1979 <= year_last, "yes", "no"))
 
   
   
@@ -346,7 +348,7 @@ world_simple_timeline <- wrld_simpl
 # Then edit just the data table of that identical copy:
 
 world_simple_timeline@data <- world_simple_timeline@data %>%
-  left_join(comm_year, by = "ISO3")
+  left_join(comm_years_leaf, by = "ISO3")
 world_simple_timeline@data$communist <- 
   ifelse(is.na(world_simple_timeline@data$communist), 
          "no", 
