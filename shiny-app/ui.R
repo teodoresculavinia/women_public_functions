@@ -40,7 +40,16 @@ shinyUI(
                    data-backed answers as to whether communism impacts gender
                     equality in the jobs market"),
                    p(a("Click Here for a link to my Repo", 
-                       href = "https://github.com/teodoresculavinia/women_public_functions"))
+                       href = "https://github.com/teodoresculavinia/women_public_functions")), 
+                   sidebarLayout(
+                       sidebarPanel(
+                           sliderInput(inputId = "Year_User", 
+                                              label = "Year", 
+                                              min = 1900, 
+                                                max = 2020, 
+                                              # multiple = TRUE, 
+                                              value = 2000)), 
+                       mainPanel(leafletOutput("comm_timeline")))
                   
                    ),
                # You would add your content within the parentheses above.

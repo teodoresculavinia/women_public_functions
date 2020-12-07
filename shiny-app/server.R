@@ -14,6 +14,9 @@ employment_sex_sector <- readRDS(file = "data/employment_sex_sector.rds")
 graph_1 <- readRDS(file = "data/graph_1.rds")
 average_employment <- readRDS(file = "data/average_employment.rds")
 world_simple_employment <- readRDS(file = "data/world_simple_employment.rds")
+world_simple_timeline <- readRDS(file = "data/world_simple_timeline.rds")
+comm_year <- readRDS(file = "data/comm_year.rds")
+
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
@@ -58,7 +61,7 @@ shinyServer(function(input, output) {
 
     })
     
-    output$female_employment <- renderLeaflet({
+    output$map_employment <- renderLeaflet({
       
       binpal <- colorBin("Reds", world_simple_employment$mean_percentage_total, 
                          9, 
@@ -126,6 +129,22 @@ output$female_employment <- renderPlot({
     filter(Continent_Name %in% input$Continent_User) %>%
     ggplot(aes(x = post_comm, y = female_percentage, color = post_comm)) +
     geom_point() 
+  
+})
+
+output$comm_timeline <- renderLeaflet ({
+  
+  comm_year <- comm_year %>%
+    mutate(communist = ifelse(year_first <= 1960 & 1960 <= year_last, "yes", "no"))
+  
+  factpal <- colorFactor(c("red", "yellow"), world_simple_timeline$communist)
+  
+  map_timeline <- leaflet(world_simple_timeline) %>%
+    addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
+                color = ~factpal(communist)) %>%
+    addProviderTiles(providers$CartoDB.Positron)
+  
+  map_timeline
   
 })
 

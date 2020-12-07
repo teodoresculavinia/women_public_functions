@@ -75,6 +75,10 @@ saveRDS(employment_pay, file = "shiny-app/data/employment_pay.rds")
 employment_pay <- readRDS(file = "shiny-app/data/employment_pay.rds")
 
 # Average hourly earnings of employees by sex in local currency, by position
+
+comm_years <- read_csv("raw_data/Comm_Years.csv")
+saveRDS(comm_years, file = "shiny-app/data/comm_years.rds")
+comm_years <- readRDS(file = "shiny-app/data/comm_years.rds")
 ```
 
 
@@ -122,24 +126,24 @@ post_comm_list %>%
 
 ```{r}
 
-country_by_continent <- readRDS(file = "shiny-app/data/country_by_continent.rds")
-country_by_continent <- country_by_continent %>%
-  rename(country_code = "Three_Letter_Country_Code") %>%
-  select(country_code, Continent_Name)
+# country_by_continent <- readRDS(file = "shiny-app/data/country_by_continent.rds")
+# country_by_continent <- country_by_continent %>%
+#  rename(country_code = "Three_Letter_Country_Code") %>%
+#  select(country_code, Continent_Name)
 
-employment_sex_sector_edit <- employment_sex_sector %>%
-  select(ref_area, ref_area.label, sex, classif1, time, obs_value) %>%
-  rename("country_code" = "ref_area") 
+# employment_sex_sector_edit <- employment_sex_sector %>%
+#  select(ref_area, ref_area.label, sex, classif1, time, obs_value) %>%
+#  rename("country_code" = "ref_area") 
 
-employment_sex_continent <- left_join(employment_sex_sector_edit, country_by_continent, by = "country_code") 
+# employment_sex_continent <- left_join(employment_sex_sector_edit, country_by_continent, by = "country_code") 
 
-employment_sex_continent %>%
-  filter(sex == "SEX_F") %>%
-  filter(classif1 == "INS_SECTOR_PUB") %>%
-  filter(Continent_Name %in% c("Asia", "Africa", "North America", "Oceania", "South America", "Europe")) %>%
-  filter(!is.na(obs_value)) %>%
-  ggplot(aes(x = Continent_Name, y = obs_value)) +
-  geom_col()
+# employment_sex_continent %>%
+#  filter(sex == "SEX_F") %>%
+#  filter(classif1 == "INS_SECTOR_PUB") %>%
+#  filter(Continent_Name %in% c("Asia", "Africa", "North America", "Oceania", "South America", "Europe")) %>%
+#  filter(!is.na(obs_value)) %>%
+#  ggplot(aes(x = Continent_Name, y = obs_value)) +
+#  geom_col()
 ```
 
 
@@ -316,6 +320,51 @@ post_comm_list %>%
           y = "Percentage of Women in Parliament", 
           caption = "\n  \n Source: CPDS") +
     theme(axis.text.x = element_text(angle=30))
+
+```
+
+```{r}
+
+comm_year <- comm_years %>%
+  left_join(graph_1, by = c("country" = "Entity"))
+
+comm_year <- comm_year %>%
+  select("country", "year_first", "year_last", "Code", "Continent_Name") %>%
+  unique() %>%
+  rename(ISO3 = "Code") %>%
+  slice(-1)
+  
+saveRDS(comm_year, file = "shiny-app/data/comm_year.rds")
+
+comm_year <- comm_year %>%
+  mutate(communist = ifelse(year_first <= 1980 & 1980 <= year_last, "yes", "no"))
+
+  
+  
+world_simple_timeline <- wrld_simpl
+
+# Then edit just the data table of that identical copy:
+
+world_simple_timeline@data <- world_simple_timeline@data %>%
+  left_join(comm_year, by = "ISO3")
+world_simple_timeline@data$communist <- 
+  ifelse(is.na(world_simple_timeline@data$communist), 
+         "no", 
+         world_simple_timeline@data$communist)
+  
+
+saveRDS(world_simple_timeline, file = "shiny-app/data/world_simple_timeline.rds")
+
+# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
+
+factpal <- colorFactor(c("red", "yellow"), world_simple_timeline$communist)
+  
+map_timeline <- leaflet(world_simple_timeline) %>%
+  addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
+    color = ~factpal(communist)) %>%
+  addProviderTiles(providers$CartoDB.Positron)
+
+map_timeline
 
 ```
 
