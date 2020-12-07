@@ -48,15 +48,15 @@ shinyUI(
                                               min = 1900, 
                                                 max = 2020, 
                                               # multiple = TRUE, 
-                                              value = 2000)), 
+                                              value = 2000, 
+                                              sep = "")), 
                        mainPanel(leafletOutput("comm_timeline")))
                   
                    ),
                # You would add your content within the parentheses above.
                tabPanel(
                    "Employment",
-                   titlePanel("Percentage of Women in Senate in Countries 
-                              begining with 'B'"),
+                   titlePanel("Percentage of Women who are employed"),
                 #   tags$style(
                 #       type = "text/css",
                 #       ".shiny-output-error {display: none;}",
@@ -72,23 +72,22 @@ shinyUI(
                                        # multiple = TRUE, 
                                        selected = c("Africa", "Asia", "Europe"))), 
                        mainPanel(plotOutput("female_employment"))),
-                   leafletOutput("map_employment"),
-                   plotOutput("senatePlot"),
-                   p("This is a sample data plot that shows how widely the 
+                p("This is a sample data plot that shows how widely the 
                      percentage of women in the workforce differs around the 
                      globe. For this specific plot, I just selected all the 
                      countries that start with the letter 'B'. In our senario, 
                      we can see Burundi, with over 80% of women beng in the 
                      workforce, as opposed to Bangladesh, where just over 20 %
                      are"),
-                  p("My dataset doesn't contain all the informations necessary 
-                    so in the future I will select only women who work in public
-                    jobs, and divide the graphs by post-communist and never
-                    communist. I am still gathering and cleaning that data.")), 
+                   leafletOutput("map_employment"),
+                    tableOutput("female_model"),
+                  p("This graph shows the percentage of women who are employed 
+                    in the workforce around the world. The darker colors show a
+                    lower percentage of women.")), 
                   
                   tabPanel(
                     "Healthcare",
-                    plotOutput("Healthcare access"),
+                    plotOutput("female_education"),
                     p("This dataset shows the difference in percentage of women
                       in Parliament in different countries that are part of the 
                       OECD. The first graph shows the countries that have never

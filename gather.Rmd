@@ -22,7 +22,8 @@ library(rstanarm)
 
 
 ```{r}
-country_by_continent <- read_csv("raw_data/data.csv")
+country_by_continent <- read_csv("raw_data/data.csv") %>%
+  rename(ISO3 = "Three_Letter_Country_Code")
 saveRDS(country_by_continent, file = "shiny-app/data/country_by_continent.rds")
 country_by_continent <- readRDS(file = "shiny-app/data/country_by_continent.rds")
 
@@ -79,6 +80,25 @@ employment_pay <- readRDS(file = "shiny-app/data/employment_pay.rds")
 comm_years <- read_csv("raw_data/Comm_Years.csv")
 saveRDS(comm_years, file = "shiny-app/data/comm_years.rds")
 comm_years <- readRDS(file = "shiny-app/data/comm_years.rds")
+
+gender_indicators_health <- read_csv("raw_data/Gender_Indicators_Report-3.csv") %>%
+rename(health_decision_question = "Series Name") %>%
+rename("year_2011" = "2011 [YR2011]") %>%
+  rename("year_2012" = "2012 [YR2012]") %>%
+  rename("year_2013" = "2013 [YR2013]") %>%
+  rename("year_2014" = "2014 [YR2014]") %>%
+  rename("year_2015" = "2015 [YR2015]") %>%
+  rename("year_2016" = "2016 [YR2016]") %>%
+  rename("year_2017" = "2017 [YR2017]") %>%
+  rename("year_2018" = "2018 [YR2018]") %>%
+mutate(health_decision_maker = ifelse(health_decision_question == "Decision maker about a woman's own health care: mainly husband (% of women age 15-49)", "husband", "other")) %>%
+mutate(health_decision_maker = ifelse(health_decision_question == "Decision maker about a woman's own health care: mainly wife (% of women age 15-49)", "wife", health_decision_maker))  %>%
+mutate(health_decision_maker = ifelse(health_decision_question == "Decision maker about a woman's own health care: someone else (% of women age 15-49)", "someone_else", health_decision_maker))
+
+saveRDS(gender_indicators_health, file = "shiny-app/data/gender_indicators_health.rds")
+gender_indicators_health <- readRDS(file = "shiny-app/data/gender_indicators_health.rds")
+
+
 ```
 
 
@@ -182,10 +202,14 @@ graph_1 %>%
 graph_2 <- graph_1 %>%
   filter(Year == "2017")
 
-stan_glm(formula = female_percentage ~ post_comm + Continent_Name, 
+fit_1 <- stan_glm(formula = female_percentage ~ post_comm + Continent_Name, 
          data = graph_2, 
          family = gaussian(),
          refresh = 0)
+print(fit_1)
+
+post_fit <- posterior_epred(fit_1)  %>%
+  as_tibble 
 
 #Add GDP?
 ```
@@ -327,6 +351,8 @@ post_comm_list %>%
 
 ```{r}
 
+# PAGE 1: Map
+
 comm_years_leaf <- comm_years %>%
   left_join(graph_1, by = c("country" = "Entity"))
 
@@ -335,14 +361,37 @@ comm_years_leaf <- comm_years_leaf %>%
   unique() %>%
   rename(ISO3 = "Code") %>%
   slice(-1)
-  
-saveRDS(comm_years_leaf, file = "shiny-app/data/comm_years_leaf.rds")
+
+# comm_years_leaf <- comm_years_leaf %>%
+#  ifelse(country == "Democratic Republic of Congo", ISO3 = "COD", ISO3)
+#  rename([27][4] = "COD")
+
+  comm_years_leaf[27,4] <- "KGZ"
+  comm_years_leaf[41,4] <- "COD"
+  comm_years_leaf[49,4] <- "GRD"
+  comm_years_leaf[54,4] <- "BIH"
+  comm_years_leaf[27,5] <- "Asia"
+  comm_years_leaf[41,5] <- "Africa"
+  comm_years_leaf[49,5] <- "North America"
+  comm_years_leaf[54,5] <- "Europe"
+    
+
 
 comm_years_leaf <- comm_years_leaf %>%
-  mutate(communist = ifelse(year_first <= 1979 & 1979 <= year_last, "yes", "no"))
+  right_join(country_by_continent, by = "ISO3")
 
-  
-  
+comm_years_leaf <- comm_years_leaf %>%
+  select(Country_Name, year_first, year_last, ISO3, Continent_Name.x) %>%
+  unique() 
+comm_years_leaf$year_first <-  ifelse(is.na(comm_years_leaf$year_first), "0", comm_years_leaf$year_first)
+comm_years_leaf$year_last <-  ifelse(is.na(comm_years_leaf$year_last), "0", comm_years_leaf$year_last)
+
+saveRDS(comm_years_leaf, file = "shiny-app/data/comm_years_leaf.rds")
+
+
+mutate(communist = ifelse(year_first <= 1979 & 1979 <= year_last, "yes", "no"))
+
+  comm_years_leaf$Country_Name
 world_simple_timeline <- wrld_simpl
 
 # Then edit just the data table of that identical copy:
@@ -367,6 +416,47 @@ map_timeline <- leaflet(world_simple_timeline) %>%
   addProviderTiles(providers$CartoDB.Positron)
 
 map_timeline
+
+```
+
+```{r}
+
+# PAGE 3
+
+gender_indicators_health_graph <- gender_indicators_health %>%
+  rename(country = "Country Name") %>%
+  rename(ISO3 = "Country Code") %>%
+  pivot_longer(cols = year_2011:year_2018, names_to = "year", values_to = "percentage") %>%
+  filter(percentage != "..") %>%
+  select(-c("Series Code", "2019 [YR2019]", "2020 [YR2020]"))
+  gender_indicators_health_graph$percentage <- as.double(gender_indicators_health_graph$percentage) 
+  
+gender_health_graph <- gender_indicators_health_graph %>%
+  group_by(country, year, health_decision_maker) %>%
+  mutate(average = mean(percentage)) %>%
+  left_join(comm_years_leaf, by = "ISO3") %>%
+  left_join(country_by_continent, by = "ISO3") %>%
+  mutate(communist = ifelse(year_first !=  "0", TRUE, FALSE)) %>%
+  filter(Continent_Name == "Asia")
+  
+saveRDS(gender_health_graph, file = "shiny-app/data/gender_health_graph.rds") 
+
+gender_health_graph %>%
+  ggplot(aes(x = reorder(country, percentage), y = percentage, color = communist)) +
+  geom_point() +
+  facet_wrap(~health_decision_maker) +
+    scale_x_reordered() +
+    theme_linedraw() +
+    theme(panel.grid.major = element_line(color = "lightgrey"),
+        panel.grid.minor = element_line(color = "lightgrey"),
+        panel.background = element_rect(fill = "white"),
+        panel.border = element_rect(color = "grey", fill = NA)) +
+    theme(axis.text.x = element_text(angle = 30)) +
+     labs(title = "Who gets to decide a woman's healthcare?", 
+          x = "Countries", 
+          y = "Percentage of Women whose healtcare is decided", 
+          caption = "\n  \n Source: Inter-Parliamentary Union", 
+          fill = "Been Communist?") 
 
 ```
 

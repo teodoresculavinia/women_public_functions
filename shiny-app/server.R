@@ -17,6 +17,7 @@ world_simple_employment <- readRDS(file = "data/world_simple_employment.rds")
 world_simple_timeline <- readRDS(file = "data/world_simple_timeline.rds")
 comm_year <- readRDS(file = "data/comm_year.rds")
 wrld_simpl <- readRDS(file = "data/wrld_simpl.rds") 
+gender_health_graph <- readRDS(file = "data/gender_health_graph.rds") 
 
 
 # Define server logic required to draw a histogram
@@ -129,7 +130,12 @@ output$female_employment <- renderPlot({
   graph_1 %>%
     filter(Continent_Name %in% input$Continent_User) %>%
     ggplot(aes(x = post_comm, y = female_percentage, color = post_comm)) +
-    geom_point() 
+    geom_point() +
+    labs(title = "How many women have a job??", 
+         x = "Status", 
+         y = "Percentage", 
+         caption = "\n  \n Source: Inter-Parliamentary Union", 
+         fill = "Been Communist?") 
   
 })
 
@@ -146,6 +152,37 @@ output$comm_timeline <- renderLeaflet ({
                   color = ~factpal(communist)) %>%
       addProviderTiles(providers$CartoDB.Positron)
     map_timeline
+})
+
+output$female_education <- renderPlot({
+  
+  gender_health_graph %>%
+    ggplot(aes(x = reorder(country, percentage), y = percentage, color = communist)) +
+    geom_point() +
+    facet_wrap(~health_decision_maker) +
+    scale_x_reordered() +
+    theme_linedraw() +
+    theme(panel.grid.major = element_line(color = "lightgrey"),
+          panel.grid.minor = element_line(color = "lightgrey"),
+          panel.background = element_rect(fill = "white"),
+          panel.border = element_rect(color = "grey", fill = NA)) +
+    theme(axis.text.x = element_text(angle = 30)) +
+    labs(title = "Who gets to decide a woman's healthcare?", 
+         x = "Countries", 
+         y = "Percentage of Women whose healtcare is decided", 
+         caption = "\n  \n Source: Inter-Parliamentary Union", 
+         fill = "Been Communist?") 
+  
+})
+
+output$female_model <- renderPrint({
+  
+fit_1 <- stan_glm(formula = female_percentage ~ post_comm + Continent_Name, 
+                  data = graph_2, 
+                  family = gaussian(),
+                  refresh = 0)
+print(fit_1)
+
 })
 
 })
