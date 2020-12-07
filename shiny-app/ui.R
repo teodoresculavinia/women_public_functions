@@ -80,7 +80,8 @@ shinyUI(
                      workforce, as opposed to Bangladesh, where just over 20 %
                      are"),
                    leafletOutput("map_employment"),
-                    tableOutput("female_model"),
+                titlePanel("Model"),
+                mainPanel(imageOutput("tbl_regression")),
                   p("This graph shows the percentage of women who are employed 
                     in the workforce around the world. The darker colors show a
                     lower percentage of women.")), 
@@ -89,21 +90,22 @@ shinyUI(
                     "Healthcare",
                     plotOutput("female_education"),
                     p("This dataset shows the difference in percentage of women
-                      in Parliament in different countries that are part of the 
-                      OECD. The first graph shows the countries that have never
-                      been communist, while the second one shows countries that 
+                      that continue education after high school. The countries 
+                      are part of the OECD. The first (pink) line  shows the 
+                      countries that have never been communist, while the second 
+                      one shows countries that 
                       have been Communist in the past", 
                     p("No post-communist country has a percentage of women of 
                       over 35%. That is counter-intuitive to what I expected, 
                       as one of the principle of communism is gender equality
-                      in the workforce"))), 
+                      in the education"))), 
 
                 tabPanel(
                   "Education",
                   plotOutput("parliament2Plot"),
                   p("This dataset, similarly to the one in the previous tab, shows 
                     the difference in Europe in percentage of women in public jobs
-                    in Western (never Communist) vs. Eastern (post Communist) countries")) 
+                    in Western (never Communist) vs. Eastern (post Communist) countries"))
                     
 
     ))

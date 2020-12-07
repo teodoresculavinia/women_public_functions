@@ -18,6 +18,20 @@ library(leaflet)
 library(maptools)
 library(plotly)
 library(rstanarm)
+
+library(shiny)
+library(shinythemes)
+
+library(ggplot2)
+library(ggthemes)
+library(gganimate)
+library(plotly)
+library(sf)
+library(rstanarm)
+library(gtsummary)
+library(broom.mixed)
+library(gt)
+
 ```
 
 
@@ -199,6 +213,8 @@ graph_1 %>%
 ```
 
 ```{r}
+
+
 graph_2 <- graph_1 %>%
   filter(Year == "2017")
 
@@ -206,7 +222,9 @@ fit_1 <- stan_glm(formula = female_percentage ~ post_comm + Continent_Name,
          data = graph_2, 
          family = gaussian(),
          refresh = 0)
-print(fit_1)
+write_rds(fit_1, "fit_1.rds")
+fit_table <- tbl_regression(fit_1, 
+                                       exponentiate = TRUE) 
 
 post_fit <- posterior_epred(fit_1)  %>%
   as_tibble 

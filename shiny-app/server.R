@@ -175,14 +175,15 @@ output$female_education <- renderPlot({
   
 })
 
-output$female_model <- renderPrint({
+output$tbl_regression <- renderImage({
   
-fit_1 <- stan_glm(formula = female_percentage ~ post_comm + Continent_Name, 
-                  data = graph_2, 
-                  family = gaussian(),
-                  refresh = 0)
-print(fit_1)
-
-})
+  list(src = 'data/model.png',
+       contentType = 'image/png', 
+       width = 300, 
+       height = 400
+  )
+  
+  
+}, deleteFile = FALSE)
 
 })
