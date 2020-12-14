@@ -188,10 +188,12 @@ graph_1 <- employment_female %>%
   select("Entity", "Code", "Year", "female_percentage", "post_comm") %>%
   left_join(employment_sector, by = c("Code" = "ref_area", "Year" = "time")) %>%
   select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", "classif1", "obs_value") %>%
-  left_join(country_by_continent, by = c("Code" = "country_code")) %>%
+  left_join(country_by_continent, by = c("Code" = "ISO3")) %>%
   select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", "classif1", "obs_value", "Continent_Name") %>%
-  unique() %>%
-  
+  unique() 
+
+
+graph_1 <- graph_1 %>%
   mutate(post_comm = ifelse(Code %in% c("CHN", "VNM", "LAO", "CUB", "PRK"), "NOW", post_comm)) %>%
   mutate(post_comm = ifelse(is.na(post_comm), "FALSE", post_comm)) %>%
   # replace_na(post_comm, "FALSE")
@@ -269,7 +271,7 @@ map <- leaflet(world_simple_comm) %>%
   addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
     color = ~binpal(gov_right1)) %>%
   addProviderTiles(providers$CartoDB.Positron)
-# map
+map
 
 ```
 
@@ -392,6 +394,9 @@ comm_years_leaf <- comm_years_leaf %>%
   comm_years_leaf[41,5] <- "Africa"
   comm_years_leaf[49,5] <- "North America"
   comm_years_leaf[54,5] <- "Europe"
+  
+# I couldn't think of another way to rename this, so I just went into the table
+# and hand-renamed them
     
 
 
@@ -406,10 +411,10 @@ comm_years_leaf$year_last <-  ifelse(is.na(comm_years_leaf$year_last), "0", comm
 
 saveRDS(comm_years_leaf, file = "shiny-app/data/comm_years_leaf.rds")
 
-
+comm_years_leaf <- comm_years_leaf %>%
 mutate(communist = ifelse(year_first <= 1979 & 1979 <= year_last, "yes", "no"))
 
-  comm_years_leaf$Country_Name
+# comm_years_leaf$Country_Name
 world_simple_timeline <- wrld_simpl
 
 # Then edit just the data table of that identical copy:
