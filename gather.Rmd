@@ -115,28 +115,26 @@ gender_indicators_health <- readRDS(file = "shiny-app/data/gender_indicators_hea
 
 ```
 
+WORK: 
 
 ```{r}
-women_in_parliament_2008 <- read_excel("raw_data/cpdsIIc/Women in Parliament UPDATED 2008.xls")
-  
+
 CPDS_1960_2018 <- read_excel("raw_data/CPDS_1960-2018_Update_2020.xlsx")
 
 post_comm_list <- read_excel("raw_data/cpdsIIc/Women in Parliament UPDATED 2008.xls") %>%
   mutate(post_comm = "TRUE") %>%
   select(country, post_comm) %>%
   distinct() %>%
-right_join(CPDS_1960_2018, by = "country") %>%
+right_join(CPDS_1960_2018, by = "country", "year" = "year...1") %>%
   mutate(post_comm = ifelse(is.na(post_comm), FALSE, TRUE))
   
   saveRDS(post_comm_list, file = "shiny-app/data/post_comm_list.rds")
-```
-
-
-```{r}
-post_comm_list %>%
+  post_comm_list %>%
   rename("year" = 'year...1') %>%
   filter(year == 2018) %>%
-  ggplot(aes(x = reorder_within(country, womenpar, womenpar), y = womenpar, color = post_comm)) +
+  ggplot(aes(x = reorder_within(country, womenpar, womenpar), 
+             y = womenpar, 
+             color = post_comm)) +
   geom_point() +
   facet_wrap(~post_comm, drop = TRUE, scales = "free_x") +
   scale_x_reordered() +
@@ -154,34 +152,10 @@ post_comm_list %>%
     theme(axis.text.x = element_text(angle=30))
 
 # To have one boxplot w/ post comm, never comm and currently comm
-
 ```
-
 
 ```{r}
 
-# country_by_continent <- readRDS(file = "shiny-app/data/country_by_continent.rds")
-# country_by_continent <- country_by_continent %>%
-#  rename(country_code = "Three_Letter_Country_Code") %>%
-#  select(country_code, Continent_Name)
-
-# employment_sex_sector_edit <- employment_sex_sector %>%
-#  select(ref_area, ref_area.label, sex, classif1, time, obs_value) %>%
-#  rename("country_code" = "ref_area") 
-
-# employment_sex_continent <- left_join(employment_sex_sector_edit, country_by_continent, by = "country_code") 
-
-# employment_sex_continent %>%
-#  filter(sex == "SEX_F") %>%
-#  filter(classif1 == "INS_SECTOR_PUB") %>%
-#  filter(Continent_Name %in% c("Asia", "Africa", "North America", "Oceania", "South America", "Europe")) %>%
-#  filter(!is.na(obs_value)) %>%
-#  ggplot(aes(x = Continent_Name, y = obs_value)) +
-#  geom_col()
-```
-
-
-```{r}
 graph_1 <- employment_female %>%
   rename("female_percentage" = "Labor force participation rate, female (% of female population ages 15+) (modeled ILO estimate)") %>%
   left_join(post_comm_list, by = c("Code" = "iso")) %>%
@@ -205,6 +179,93 @@ graph_1 <- graph_1 %>%
     mutate(percentage_female_public = SEX_F_INS_SECTOR_PUB/SEX_T_INS_SECTOR_PUB*100)
 saveRDS(graph_1, file = "shiny-app/data/graph_1.rds")
 
+```
+
+
+PAGE 1, Intro:
+
+```{r}
+
+# PRE-SAVED
+
+comm_years_leaf <- comm_years %>%
+  left_join(graph_1, by = c("country" = "Entity"))
+
+comm_years_leaf <- comm_years_leaf %>%
+  select("country", "year_first", "year_last", "Code", "Continent_Name") %>%
+  unique() %>%
+  rename(ISO3 = "Code") %>%
+  slice(-1)
+
+# comm_years_leaf <- comm_years_leaf %>%
+#  ifelse(country == "Democratic Republic of Congo", ISO3 = "COD", ISO3)
+#  rename([27][4] = "COD")
+
+  comm_years_leaf[27,4] <- "KGZ"
+  comm_years_leaf[41,4] <- "COD"
+  comm_years_leaf[49,4] <- "GRD"
+  comm_years_leaf[54,4] <- "BIH"
+  comm_years_leaf[27,5] <- "Asia"
+  comm_years_leaf[41,5] <- "Africa"
+  comm_years_leaf[49,5] <- "North America"
+  comm_years_leaf[54,5] <- "Europe"
+  
+# I couldn't think of another way to rename this, so I just went into the table
+# and hand-renamed them
+  
+  comm_years_leaf <- comm_years_leaf %>%
+  right_join(country_by_continent, by = "ISO3")
+
+comm_years_leaf <- comm_years_leaf %>%
+  select(Country_Name, year_first, year_last, ISO3, Continent_Name.x) %>%
+  unique() 
+comm_years_leaf$year_first <-  ifelse(is.na(comm_years_leaf$year_first), "0", comm_years_leaf$year_first)
+comm_years_leaf$year_last <-  ifelse(is.na(comm_years_leaf$year_last), "0", comm_years_leaf$year_last)
+
+saveRDS(comm_years_leaf, file = "shiny-app/data/comm_years_leaf.rds")
+
+# IN SERVER: 
+
+comm_years_leaf <- comm_years_leaf %>%
+mutate(communist = ifelse(year_first <= 1979 & 1979 <= year_last, "yes", "no"))
+
+# PRE-SAVED: 
+
+data(wrld_simpl)
+world_simple_timeline <- wrld_simpl
+
+# Then edit just the data table of that identical copy:
+
+world_simple_timeline@data <- world_simple_timeline@data %>%
+  left_join(comm_years_leaf, by = "ISO3")
+world_simple_timeline@data$communist <- 
+  ifelse(is.na(world_simple_timeline@data$communist), 
+         "no", 
+         world_simple_timeline@data$communist)
+  
+saveRDS(world_simple_timeline, file = "shiny-app/data/world_simple_timeline.rds")
+
+# IN SERVER
+
+# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
+
+factpal <- colorFactor(c("red", "yellow"), world_simple_timeline$communist)
+  
+map_timeline <- leaflet(world_simple_timeline) %>%
+  addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
+    color = ~factpal(communist)) %>%
+  addProviderTiles(providers$CartoDB.Positron)
+
+map_timeline
+```
+
+
+PAGE 2, employment: 
+
+```{r}
+
+# GRAPH:
+
 graph_1 %>%
  # filter(!is.na(percentage_female_total)) %>%
   # filter(Year == "2000") %>%
@@ -214,8 +275,10 @@ graph_1 %>%
   
 ```
 
+
 ```{r}
 
+# MODEL: 
 
 graph_2 <- graph_1 %>%
   filter(Year == "2017")
@@ -234,15 +297,115 @@ post_fit <- posterior_epred(fit_1)  %>%
 #Add GDP?
 ```
 
+```{r}
 
+# MAP: 
+
+average_employment <- graph_1 %>%
+  group_by(Entity) %>%
+  drop_na(percentage_female_total) %>%
+  mutate(mean_percentage_total = mean(percentage_female_total)) %>%
+  rename(ISO3 = "Code")
+  
+saveRDS(average_employment, file = "shiny-app/data/average_employment.rds")
+
+# In your previous code, you assigned only the data table from wrld_smpl to world_simple_comm. You need the data table and the polygons! So, first create an identical copy of wrld_simpl:
+
+world_simple_employment <- wrld_simpl
+
+# Then edit just the data table of that identical copy:
+
+world_simple_employment@data <- world_simple_employment@data %>%
+  left_join(average_employment, by = "ISO3")
+
+saveRDS(world_simple_employment, file = "shiny-app/data/world_simple_employment.rds")
+
+# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
+
+binpal <- colorBin("Reds", world_simple_employment$mean_percentage_total, 9, pretty = FALSE)
+  
+map_employment <- leaflet(world_simple_employment) %>%
+  addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
+    color = ~binpal(mean_percentage_total)) %>%
+  addProviderTiles(providers$CartoDB.Positron)
+
+map_employment
+```
+
+
+PAGE 3, health:
+
+```{r}
+
+gender_indicators_health_graph <- gender_indicators_health %>%
+  rename(country = "Country Name") %>%
+  rename(ISO3 = "Country Code") %>%
+  pivot_longer(cols = year_2011:year_2018, names_to = "year", values_to = "percentage") %>%
+  filter(percentage != "..") %>%
+  select(-c("Series Code", "2019 [YR2019]", "2020 [YR2020]"))
+  gender_indicators_health_graph$percentage <- as.double(gender_indicators_health_graph$percentage) 
+  
+gender_health_graph <- gender_indicators_health_graph %>%
+  group_by(country, year, health_decision_maker) %>%
+  mutate(average = mean(percentage)) %>%
+  left_join(comm_years_leaf, by = "ISO3") %>%
+  left_join(country_by_continent, by = "ISO3") %>%
+  mutate(communist = ifelse(year_first !=  "0", TRUE, FALSE)) %>%
+  filter(Continent_Name == "Asia")
+  
+saveRDS(gender_health_graph, file = "shiny-app/data/gender_health_graph.rds") 
+
+gender_health_graph %>%
+  ggplot(aes(x = reorder(country, percentage), y = percentage, color = communist)) +
+  geom_point() +
+  facet_wrap(~health_decision_maker) +
+    scale_x_reordered() +
+    theme_linedraw() +
+    theme(panel.grid.major = element_line(color = "lightgrey"),
+        panel.grid.minor = element_line(color = "lightgrey"),
+        panel.background = element_rect(fill = "white"),
+        panel.border = element_rect(color = "grey", fill = NA)) +
+    theme(axis.text.x = element_text(angle = 30)) +
+     labs(title = "Who gets to decide a woman's healthcare?", 
+          x = "Countries", 
+          y = "Percentage of Women whose healtcare is decided", 
+          caption = "\n  \n Source: Inter-Parliamentary Union", 
+          fill = "Been Communist?") 
+
+```
+
+PAGE 4, Eduacation: 
+
+```{r}
+
+post_comm_list %>%
+  rename("year" = 'year...1') %>%
+  filter(year == 2018) %>%
+  ggplot(aes(x = post_comm, y = womenpar, color = post_comm)) +
+  geom_boxplot() +
+  scale_x_reordered() +
+    theme_linedraw() +
+    theme(panel.grid.major = element_line(color = "lightgrey"),
+        panel.grid.minor = element_line(color = "lightgrey"),
+        panel.background = element_rect(fill = "white"),
+        panel.border = element_rect(color = "grey", fill = NA)) +
+  scale_color_discrete(name = "Communist Status", 
+                       labels = c("Never Communist", "Post-Communist"))+
+    labs(title = "Women in Parliament: Never Communist v. Post- Communist Countries", 
+          x = "OECD Countries", 
+          y = "Percentage of Women in Parliament", 
+          caption = "\n  \n Source: CPDS") +
+    theme(axis.text.x = element_text(angle=30))
+
+```
+
+NOT USED: 
 
 ```{r}
 
 map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
   distinct(country, .keep_all = TRUE)%>%
   rename(ISO3 = "iso")
-
-data(wrld_simpl)
 
 saveRDS(wrld_simpl, file = "shiny-app/data/wrld_simpl.rds") 
 
@@ -309,177 +472,6 @@ ggplot(mapping = aes(x = reorder_within(Entity, within = avg, by = avg), y = avg
 ```
 
 
-```{r}
-
-average_employment <- graph_1 %>%
-  group_by(Entity) %>%
-  drop_na(percentage_female_total) %>%
-  mutate(mean_percentage_total = mean(percentage_female_total)) %>%
-  rename(ISO3 = "Code")
-  
-saveRDS(average_employment, file = "shiny-app/data/average_employment.rds")
-
-# In your previous code, you assigned only the data table from wrld_smpl to world_simple_comm. You need the data table and the polygons! So, first create an identical copy of wrld_simpl:
-
-world_simple_employment <- wrld_simpl
-
-# Then edit just the data table of that identical copy:
-
-world_simple_employment@data <- world_simple_employment@data %>%
-  left_join(average_employment, by = "ISO3")
-
-saveRDS(world_simple_employment, file = "shiny-app/data/world_simple_employment.rds")
-
-# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
-
-binpal <- colorBin("Reds", world_simple_employment$mean_percentage_total, 9, pretty = FALSE)
-  
-map_employment <- leaflet(world_simple_employment) %>%
-  addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
-    color = ~binpal(mean_percentage_total)) %>%
-  addProviderTiles(providers$CartoDB.Positron)
-
-map_employment
 
 
-```
-
-
-
-```{r}
-
-post_comm_list %>%
-  rename("year" = 'year...1') %>%
-  filter(year == 2018) %>%
-  ggplot(aes(x = post_comm, y = womenpar, color = post_comm)) +
-  geom_boxplot() +
-  scale_x_reordered() +
-    theme_linedraw() +
-    theme(panel.grid.major = element_line(color = "lightgrey"),
-        panel.grid.minor = element_line(color = "lightgrey"),
-        panel.background = element_rect(fill = "white"),
-        panel.border = element_rect(color = "grey", fill = NA)) +
-  scale_color_discrete(name = "Communist Status", 
-                       labels = c("Never Communist", "Post-Communist"))+
-    labs(title = "Women in Parliament: Never Communist v. Post- Communist Countries", 
-          x = "OECD Countries", 
-          y = "Percentage of Women in Parliament", 
-          caption = "\n  \n Source: CPDS") +
-    theme(axis.text.x = element_text(angle=30))
-
-```
-
-```{r}
-
-# PAGE 1: Map
-
-comm_years_leaf <- comm_years %>%
-  left_join(graph_1, by = c("country" = "Entity"))
-
-comm_years_leaf <- comm_years_leaf %>%
-  select("country", "year_first", "year_last", "Code", "Continent_Name") %>%
-  unique() %>%
-  rename(ISO3 = "Code") %>%
-  slice(-1)
-
-# comm_years_leaf <- comm_years_leaf %>%
-#  ifelse(country == "Democratic Republic of Congo", ISO3 = "COD", ISO3)
-#  rename([27][4] = "COD")
-
-  comm_years_leaf[27,4] <- "KGZ"
-  comm_years_leaf[41,4] <- "COD"
-  comm_years_leaf[49,4] <- "GRD"
-  comm_years_leaf[54,4] <- "BIH"
-  comm_years_leaf[27,5] <- "Asia"
-  comm_years_leaf[41,5] <- "Africa"
-  comm_years_leaf[49,5] <- "North America"
-  comm_years_leaf[54,5] <- "Europe"
-  
-# I couldn't think of another way to rename this, so I just went into the table
-# and hand-renamed them
-    
-
-
-comm_years_leaf <- comm_years_leaf %>%
-  right_join(country_by_continent, by = "ISO3")
-
-comm_years_leaf <- comm_years_leaf %>%
-  select(Country_Name, year_first, year_last, ISO3, Continent_Name.x) %>%
-  unique() 
-comm_years_leaf$year_first <-  ifelse(is.na(comm_years_leaf$year_first), "0", comm_years_leaf$year_first)
-comm_years_leaf$year_last <-  ifelse(is.na(comm_years_leaf$year_last), "0", comm_years_leaf$year_last)
-
-saveRDS(comm_years_leaf, file = "shiny-app/data/comm_years_leaf.rds")
-
-comm_years_leaf <- comm_years_leaf %>%
-mutate(communist = ifelse(year_first <= 1979 & 1979 <= year_last, "yes", "no"))
-
-# comm_years_leaf$Country_Name
-world_simple_timeline <- wrld_simpl
-
-# Then edit just the data table of that identical copy:
-
-world_simple_timeline@data <- world_simple_timeline@data %>%
-  left_join(comm_years_leaf, by = "ISO3")
-world_simple_timeline@data$communist <- 
-  ifelse(is.na(world_simple_timeline@data$communist), 
-         "no", 
-         world_simple_timeline@data$communist)
-  
-
-saveRDS(world_simple_timeline, file = "shiny-app/data/world_simple_timeline.rds")
-
-# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
-
-factpal <- colorFactor(c("red", "yellow"), world_simple_timeline$communist)
-  
-map_timeline <- leaflet(world_simple_timeline) %>%
-  addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
-    color = ~factpal(communist)) %>%
-  addProviderTiles(providers$CartoDB.Positron)
-
-map_timeline
-
-```
-
-```{r}
-
-# PAGE 3
-
-gender_indicators_health_graph <- gender_indicators_health %>%
-  rename(country = "Country Name") %>%
-  rename(ISO3 = "Country Code") %>%
-  pivot_longer(cols = year_2011:year_2018, names_to = "year", values_to = "percentage") %>%
-  filter(percentage != "..") %>%
-  select(-c("Series Code", "2019 [YR2019]", "2020 [YR2020]"))
-  gender_indicators_health_graph$percentage <- as.double(gender_indicators_health_graph$percentage) 
-  
-gender_health_graph <- gender_indicators_health_graph %>%
-  group_by(country, year, health_decision_maker) %>%
-  mutate(average = mean(percentage)) %>%
-  left_join(comm_years_leaf, by = "ISO3") %>%
-  left_join(country_by_continent, by = "ISO3") %>%
-  mutate(communist = ifelse(year_first !=  "0", TRUE, FALSE)) %>%
-  filter(Continent_Name == "Asia")
-  
-saveRDS(gender_health_graph, file = "shiny-app/data/gender_health_graph.rds") 
-
-gender_health_graph %>%
-  ggplot(aes(x = reorder(country, percentage), y = percentage, color = communist)) +
-  geom_point() +
-  facet_wrap(~health_decision_maker) +
-    scale_x_reordered() +
-    theme_linedraw() +
-    theme(panel.grid.major = element_line(color = "lightgrey"),
-        panel.grid.minor = element_line(color = "lightgrey"),
-        panel.background = element_rect(fill = "white"),
-        panel.border = element_rect(color = "grey", fill = NA)) +
-    theme(axis.text.x = element_text(angle = 30)) +
-     labs(title = "Who gets to decide a woman's healthcare?", 
-          x = "Countries", 
-          y = "Percentage of Women whose healtcare is decided", 
-          caption = "\n  \n Source: Inter-Parliamentary Union", 
-          fill = "Been Communist?") 
-
-```
 
