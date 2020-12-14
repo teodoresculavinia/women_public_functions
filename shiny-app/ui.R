@@ -66,8 +66,9 @@ shinyUI(
                            column(8, 
                                   titlePanel("Percentage of Women who are employed"), 
                                   sidebarLayout(
-                                      sidebarPanel(
-                                          checkboxGroupInput(inputId = "Continent_User", 
+                                      fluidRow(column(2,
+                                             sidebarPanel(
+                                                 checkboxGroupInput(inputId = "Continent_User", 
                                                              label = "Continent", 
                                                              choices = c("Africa" = "Africa", 
                                                                          "Asia" = "Asia", 
@@ -78,8 +79,9 @@ shinyUI(
                                                              # multiple = TRUE, 
                                                              selected = c("Africa", "Asia", "Europe", 
                                                                           "Oceania", "South America", 
-                                                                          "North America"))), 
-                                      mainPanel(plotOutput("female_employment")))),
+                                                                          "North America")))),
+                                             column(6,
+                                      mainPanel(plotOutput("female_employment")))))),
                            column(2,
                                   " "
                            )
