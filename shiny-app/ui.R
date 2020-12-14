@@ -56,35 +56,83 @@ shinyUI(
                # You would add your content within the parentheses above.
                tabPanel(
                    "Employment",
-                   titlePanel("Percentage of Women who are employed"),
+                   fluidPage(
+                       fluidRow(
+                           column(2,
+                                  " ", 
+                                  " ",
+                                  " "
+                           ),
+                           column(8, 
+                                  titlePanel("Percentage of Women who are employed"), 
+                                  sidebarLayout(
+                                      sidebarPanel(
+                                          checkboxGroupInput(inputId = "Continent_User", 
+                                                             label = "Continent", 
+                                                             choices = c("Africa" = "Africa", 
+                                                                         "Asia" = "Asia", 
+                                                                         "Europe" = "Europe", 
+                                                                         "Oceania" = "Oceania", 
+                                                                         "South America" = "South America", 
+                                                                         "North America" = "North America"), 
+                                                             # multiple = TRUE, 
+                                                             selected = c("Africa", "Asia", "Europe", 
+                                                                          "Oceania", "South America", 
+                                                                          "North America"))), 
+                                      mainPanel(plotOutput("female_employment")))),
+                           column(2,
+                                  " "
+                           )
+                       )
+                   ),
+                   
                 #   tags$style(
                 #       type = "text/css",
                 #       ".shiny-output-error {display: none;}",
                 #       ".shiny-output-error:before {display: none;}"
                 #   ),
-                   sidebarLayout(
-                       sidebarPanel(
-                           checkboxGroupInput(inputId = "Continent_User", 
-                                       label = "Continent", 
-                                       choices = c("Africa" = "Africa", 
-                                                   "Asia" = "Asia", 
-                                                   "Europe" = "Europe"), 
-                                       # multiple = TRUE, 
-                                       selected = c("Africa", "Asia", "Europe"))), 
-                       mainPanel(plotOutput("female_employment"))),
-                p("This is a sample data plot that shows how widely the 
-                     percentage of women in the workforce differs around the 
-                     globe. For this specific plot, I just selected all the 
-                     countries that start with the letter 'B'. In our senario, 
-                     we can see Burundi, with over 80% of women beng in the 
-                     workforce, as opposed to Bangladesh, where just over 20 %
-                     are"),
-                   leafletOutput("map_employment"),
-                titlePanel("Model"),
-                mainPanel(imageOutput("tbl_regression")),
-                  p("This graph shows the percentage of women who are employed 
+                   
+                fluidPage(
+                    fluidRow(
+                        column(2,
+                               " ", 
+                               " ",
+                               " "
+                        ),
+                        column(8,
+                                p("This is a sample data plot that shows how widely the 
+                             percentage of women in the workforce differs around the 
+                            globe. For this specific plot, I just selected all the 
+                            countries that start with the letter 'B'. In our senario, 
+                            we can see Burundi, with over 80% of women beng in the 
+                            workforce, as opposed to Bangladesh, where just over 20 %
+                            are")), 
+                        column(2, 
+                               " "))),
+                fluidPage(
+                    fluidRow(
+                        column(2,
+                               " ", 
+                               " ",
+                               " "
+                        ),
+                        column(8,
+                               leafletOutput("map_employment")), 
+                        column(2, 
+                               " "))),
+                fluidPage(
+                    fluidRow(
+                        column(2,
+                               " "
+                        ),
+                        column(8,
+                               titlePanel("Model"),
+                               mainPanel(imageOutput("tbl_regression")),
+                               p("This graph shows the percentage of women who are employed 
                     in the workforce around the world. The darker colors show a
-                    lower percentage of women.")), 
+                    lower percentage of women."))), 
+                        column(2, 
+                               " "))), 
                   
                   tabPanel(
                     "Healthcare",

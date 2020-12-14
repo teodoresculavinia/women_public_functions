@@ -141,11 +141,22 @@ output$female_employment <- renderPlot({
 
 output$comm_timeline <- renderLeaflet ({
   
+#    world_simple_timeline <- wrld_simpl
+#    world_simple_timeline@data <- comm_year %>%
+#      mutate(communist = ifelse(year_first <= input$Year_User & input$Year_User <= year_last, "yes", "no")) %>%
+#      right_join(world_simple_timeline@data, by = "ISO3") %>%
+#      mutate(communist = ifelse(is.na(communist), "no", communist))
+    
+    temp <- comm_year %>%
+      distinct(ISO3, .keep_all = TRUE) %>%
+      select(ISO3, year_first, year_last) %>%
+      mutate(communist = ifelse(year_first <= input$Year_User & year_last >= input$Year_User, "yes", "no"))
+    
     world_simple_timeline <- wrld_simpl
-    world_simple_timeline@data <- comm_year %>%
-      mutate(communist = ifelse(year_first <= input$Year_User & input$Year_User <= year_last, "yes", "no")) %>%
-      right_join(world_simple_timeline@data, by = "ISO3") %>%
+    world_simple_timeline@data <- wrld_simpl@data %>%
+      left_join(temp, by = "ISO3") %>%
       mutate(communist = ifelse(is.na(communist), "no", communist))
+    
     factpal <- colorFactor(c("red", "yellow"), world_simple_timeline$communist)
     map_timeline <- leaflet(world_simple_timeline) %>%
       addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
