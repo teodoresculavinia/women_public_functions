@@ -9,19 +9,17 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
+
 library(tidyverse)
 library(tidytext)
-library(readr)
 library(readxl)
 library(stringr)
 library(leaflet)
 library(maptools)
 library(plotly)
 library(rstanarm)
-
 library(shiny)
 library(shinythemes)
-
 library(ggplot2)
 library(ggthemes)
 library(gganimate)
@@ -85,9 +83,9 @@ employment_position <- readRDS(file = "shiny-app/data/employment_position.rds")
 # Female share of employment in managerial positions (%) - senior/ total
 # managerial
 
-employment_pay <- read_csv("raw_data/ilostat-2020-11-13-4.csv")
-saveRDS(employment_pay, file = "shiny-app/data/employment_pay.rds")
-employment_pay <- readRDS(file = "shiny-app/data/employment_pay.rds")
+# employment_pay <- read_csv("raw_data/ilostat-2020-11-13-4.csv")
+# saveRDS(employment_pay, file = "shiny-app/data/employment_pay.rds")
+# employment_pay <- readRDS(file = "shiny-app/data/employment_pay.rds")
 
 # Average hourly earnings of employees by sex in local currency, by position
 
@@ -105,6 +103,11 @@ rename("year_2011" = "2011 [YR2011]") %>%
   rename("year_2016" = "2016 [YR2016]") %>%
   rename("year_2017" = "2017 [YR2017]") %>%
   rename("year_2018" = "2018 [YR2018]") %>%
+  
+  # I had to rename all of these years because they were impossible to work with
+  # further in the dataset. This whole raw dataset was pretty messy interms on
+  # naming.
+  
 mutate(health_decision_maker = ifelse(health_decision_question == "Decision maker about a woman's own health care: mainly husband (% of women age 15-49)", "husband", "other")) %>%
 mutate(health_decision_maker = ifelse(health_decision_question == "Decision maker about a woman's own health care: mainly wife (% of women age 15-49)", "wife", health_decision_maker))  %>%
 mutate(health_decision_maker = ifelse(health_decision_question == "Decision maker about a woman's own health care: someone else (% of women age 15-49)", "someone_else", health_decision_maker))
@@ -125,13 +128,25 @@ post_comm_list <- read_excel("raw_data/cpdsIIc/Women in Parliament UPDATED 2008.
   mutate(post_comm = "TRUE") %>%
   select(country, post_comm) %>%
   distinct() %>%
+  
+# Out of the whole dataset, I just wanted country and whether or not they were
+# communist, which means I used distinct to kind of get rid of all the
+# repetitive countries that remained after selecting out the other variables.
+  
 right_join(CPDS_1960_2018, by = "country", "year" = "year...1") %>%
   mutate(post_comm = ifelse(is.na(post_comm), FALSE, TRUE))
+
+# This is where I actually atributes TRUE FALSE values to countries based on
+# whether they were or not communist in the past.
   
   saveRDS(post_comm_list, file = "shiny-app/data/post_comm_list.rds")
   post_comm_list %>%
   rename("year" = 'year...1') %>%
   filter(year == 2018) %>%
+    
+# This is for testing purposes only. in the server I allow the user to input
+# year, but to test whether the graph works I am selecting one to try it on.
+    
   ggplot(aes(x = reorder_within(country, womenpar, womenpar), 
              y = womenpar, 
              color = post_comm)) +
@@ -145,10 +160,17 @@ right_join(CPDS_1960_2018, by = "country", "year" = "year...1") %>%
         panel.border = element_rect(color = "grey", fill = NA)) +
   scale_color_discrete(name = "Communist Status", 
                        labels = c("Never Communist", "Post-Communist"))+
-    labs(title = "Women in Parliament: Never Communist v. Post- Communist Countries", 
+    labs(title = "Women in Parliament: Never Communist v. 
+         Post- Communist Countries", 
           x = "OECD Countries", 
           y = "Percentage of Women in Parliament", 
           caption = "\n  \n Source: CPDS") +
+    
+# So in this plot I just used the OECD countries because they tend to be more
+# *equal?* in terms of other aspects such as development, economy etc, and i
+# could isolate better whether communist actually has an effect on the
+# percentage of women in parliament.
+    
     theme(axis.text.x = element_text(angle=30))
 
 # To have one boxplot w/ post comm, never comm and currently comm
@@ -160,23 +182,50 @@ graph_1 <- employment_female %>%
   rename("female_percentage" = "Labor force participation rate, female (% of female population ages 15+) (modeled ILO estimate)") %>%
   left_join(post_comm_list, by = c("Code" = "iso")) %>%
   select("Entity", "Code", "Year", "female_percentage", "post_comm") %>%
-  left_join(employment_sector, by = c("Code" = "ref_area", "Year" = "time")) %>%
-  select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", "classif1", "obs_value") %>%
+  left_join(employment_sector, by = c("Code" = "ref_area", 
+                                      "Year" = "time")) %>%
+  select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", 
+         "classif1", "obs_value") %>%
   left_join(country_by_continent, by = c("Code" = "ISO3")) %>%
-  select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", "classif1", "obs_value", "Continent_Name") %>%
+  select("Entity", "Code", "Year", "female_percentage", "post_comm", "sex", 
+         "classif1", "obs_value", "Continent_Name") %>%
   unique() 
+
+# I kept refreshing this sectin and did not understand why I ended up having
+# like 5000 columns. It was because each time I would refresh it, it would add
+# the columns again and again because I had "graph_1 <- graph_1". Never use that
+# same name when you do join!
 
 
 graph_1 <- graph_1 %>%
-  mutate(post_comm = ifelse(Code %in% c("CHN", "VNM", "LAO", "CUB", "PRK"), "NOW", post_comm)) %>%
+  mutate(post_comm = ifelse(Code %in% c("CHN", "VNM", "LAO", "CUB", "PRK"), 
+                            "NOW", post_comm)) %>%
+  
+  # For some reason, Laos and Cuba are having problems being read on the first
+  # map still. Please ignore that if it is still happening. Also, IMPORTANT,
+  # when you want an ifelse() to leave some values the same (say, for FALSE),
+  # just add the name of that column for the false argument (in our case, that
+  # is "post_comm")
+  
   mutate(post_comm = ifelse(is.na(post_comm), "FALSE", post_comm)) %>%
-  # replace_na(post_comm, "FALSE")
+  
+  # I added replace_na(post_comm, "FALSE"), but it did not do what I wanted it
+  # to so and the dataset ended up looking weird. Had to pivot wider and then
+  # remove NA.
+  
   pivot_wider(names_from = c("sex", "classif1"), values_from = "obs_value") %>%
-  #group_by("Entity", "Year", "classif1") %>%
+  
+  # I tries to group by that for - mutate group_by("Entity", "Year", "classif1")
+  # - turns out there was no reason, it actually would've just grouped each row
+  # alone.
+  
   select(-"NA_NA") %>%
-  mutate(percentage_female_total = SEX_F_INS_SECTOR_TOTAL/SEX_T_INS_SECTOR_TOTAL*100) %>%
-    mutate(percentage_female_private = SEX_F_INS_SECTOR_PRI/SEX_T_INS_SECTOR_PRI*100) %>%
-    mutate(percentage_female_public = SEX_F_INS_SECTOR_PUB/SEX_T_INS_SECTOR_PUB*100)
+  mutate(percentage_female_total = 
+           SEX_F_INS_SECTOR_TOTAL/SEX_T_INS_SECTOR_TOTAL*100) %>%
+    mutate(percentage_female_private = 
+             SEX_F_INS_SECTOR_PRI/SEX_T_INS_SECTOR_PRI*100) %>%
+    mutate(percentage_female_public = 
+             SEX_F_INS_SECTOR_PUB/SEX_T_INS_SECTOR_PUB*100)
 saveRDS(graph_1, file = "shiny-app/data/graph_1.rds")
 
 ```
@@ -191,15 +240,21 @@ PAGE 1, Intro:
 comm_years_leaf <- comm_years %>%
   left_join(graph_1, by = c("country" = "Entity"))
 
+# This is the big dataset that I am trying to get. It has all the countries,
+# with ISO, and the years between which they were communist. Not only will this
+# be my first map, but also will be the base of all other graphs afterwards.
+
 comm_years_leaf <- comm_years_leaf %>%
   select("country", "year_first", "year_last", "Code", "Continent_Name") %>%
   unique() %>%
   rename(ISO3 = "Code") %>%
   slice(-1)
 
-# comm_years_leaf <- comm_years_leaf %>%
-#  ifelse(country == "Democratic Republic of Congo", ISO3 = "COD", ISO3)
-#  rename([27][4] = "COD")
+#  This was my first try at renaming -- however, I realized you can only rename
+#  column names, not actual data in the cells (smart):
+  #  comm_years_leaf <- comm_years_leaf %>%
+  #  ifelse(country == "Democratic Republic of Congo", ISO3 = "COD", ISO3)
+  #  rename([27][4] = "COD")
 
   comm_years_leaf[27,4] <- "KGZ"
   comm_years_leaf[41,4] <- "COD"
@@ -219,40 +274,67 @@ comm_years_leaf <- comm_years_leaf %>%
 comm_years_leaf <- comm_years_leaf %>%
   select(Country_Name, year_first, year_last, ISO3, Continent_Name.x) %>%
   unique() 
-comm_years_leaf$year_first <-  ifelse(is.na(comm_years_leaf$year_first), "0", comm_years_leaf$year_first)
-comm_years_leaf$year_last <-  ifelse(is.na(comm_years_leaf$year_last), "0", comm_years_leaf$year_last)
+comm_years_leaf$year_first <-  ifelse(is.na(comm_years_leaf$year_first), 
+                                      "0", 
+                                      comm_years_leaf$year_first)
+comm_years_leaf$year_last <-  ifelse(is.na(comm_years_leaf$year_last), 
+                                     "0", 
+                                     comm_years_leaf$year_last)
+
+comm_years_leaf[97,2] <- "1965"
+comm_years_leaf[97,3] <- "2020"
+comm_years_leaf[144,2] <- "1975"
+comm_years_leaf[144,3] <- "2020"
+
+# This ifelse() serves as a way to say that all countries who have never been
+# communist "have been communist from year 0 to year 0" - not very historically
+# acurate, but better than having NA in my situation.
 
 saveRDS(comm_years_leaf, file = "shiny-app/data/comm_years_leaf.rds")
 
 # IN SERVER: 
 
-comm_years_leaf <- comm_years_leaf %>%
-mutate(communist = ifelse(year_first <= 1979 & 1979 <= year_last, "yes", "no"))
+    temp <- comm_years_leaf %>%
+      distinct(ISO3, .keep_all = TRUE) %>%
+      select(ISO3, year_first, year_last) %>%
+      mutate(communist = ifelse(year_first <= 1979 & 1979 <= year_last, 
+                                "yes", 
+                                "no"))
 
 # PRE-SAVED: 
 
 data(wrld_simpl)
 world_simple_timeline <- wrld_simpl
 
-# Then edit just the data table of that identical copy:
+# This was my first try, and I am keeping it here as a reminder of what did not
+# work. The secret was to do the join last, instead of earlier, and to assign
+# wrld_simpl@data to world_simple_timeline@data, not just
+# world_simple_timeline@data to itself. Here is the wrong code:
 
-world_simple_timeline@data <- world_simple_timeline@data %>%
-  left_join(comm_years_leaf, by = "ISO3")
-world_simple_timeline@data$communist <- 
-  ifelse(is.na(world_simple_timeline@data$communist), 
-         "no", 
-         world_simple_timeline@data$communist)
+  # world_simple_timeline@data <- world_simple_timeline@data %>%
+  #  left_join(comm_years_leaf, by = "ISO3")
+  # world_simple_timeline@data$communist <- 
+  #  ifelse(is.na(world_simple_timeline@data$communist), 
+  #         "no", 
+  #         world_simple_timeline@data$communist)
+
+world_simple_timeline@data <- wrld_simpl@data %>%
+      left_join(temp, by = "ISO3") %>%
+      mutate(communist = ifelse(is.na(communist), "no", communist))
   
 saveRDS(world_simple_timeline, file = "shiny-app/data/world_simple_timeline.rds")
 
 # IN SERVER
 
-# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
+# Now, world_simple_comm has an updated data table AND the polygons, and can be
+# used in leaflet:
 
-factpal <- colorFactor(c("red", "yellow"), world_simple_timeline$communist)
+factpal <- colorFactor(c("yellow", "red"), world_simple_timeline$communist)
+
+#The colorFactor is what we use for TRUE/ FALSE kinds of argument/ 
   
-map_timeline <- leaflet(world_simple_timeline) %>%
-  addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
+map_timeline <- leaflet(world_simple_timeline, width = 1000, height = 1000) %>%
+  addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 0.5,
     color = ~factpal(communist)) %>%
   addProviderTiles(providers$CartoDB.Positron)
 
@@ -269,11 +351,20 @@ PAGE 2, employment:
 # IN SERVER
 
 graph_1 %>%
- # filter(!is.na(percentage_female_total)) %>%
+
+# I tried to filter out NA and to sort by year to see whether the plot changes.
+# It does a bit. In the server I end up doing it by continent.
+  # filter(!is.na(percentage_female_total)) %>%
   # filter(Year == "2000") %>%
+  
   ggplot(aes(x = post_comm, y = female_percentage, color = post_comm)) +
   geom_point() +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm") +
+    labs(title = "How many women have a job?", 
+         x = "Status", 
+         y = "Percentage", 
+         caption = "\n  \n Source: Inter-Parliamentary Union", 
+         color = "Been Communist?") 
   
 ```
 
@@ -289,15 +380,22 @@ fit_1 <- stan_glm(formula = female_percentage ~ post_comm + Continent_Name,
          data = graph_2, 
          family = gaussian(),
          refresh = 0)
+
+# I tried to do post-comm by itself, but I found that that was not very
+# reliable. I added continent because it does. to a certain extent, count for
+# other variable besides the former regime of a country.
+
 write_rds(fit_1, "fit_1.rds")
 fit_table <- tbl_regression(fit_1, 
-                                       exponentiate = TRUE) 
+                              exponentiate = TRUE) 
 
 post_fit <- posterior_epred(fit_1)  %>%
   as_tibble 
 
-#Add GDP?
+# To add GDP to the model? Could be an idea, but I think taht could overfit it. 
+
 ```
+
 
 ```{r}
 
@@ -312,9 +410,9 @@ average_employment <- graph_1 %>%
   
 saveRDS(average_employment, file = "shiny-app/data/average_employment.rds")
 
-# In your previous code, you assigned only the data table from wrld_smpl to
-# world_simple_comm. You need the data table and the polygons! So, first create
-# an identical copy of wrld_simpl:
+# Comment from Wyatt: In your previous code, you assigned only the data table
+# from wrld_smpl to world_simple_comm. You need the data table and the polygons!
+# So, first create an identical copy of wrld_simpl:
 
 world_simple_employment <- wrld_simpl
 
@@ -323,15 +421,24 @@ world_simple_employment <- wrld_simpl
 world_simple_employment@data <- world_simple_employment@data %>%
   left_join(average_employment, by = "ISO3")
 
-saveRDS(world_simple_employment, file = "shiny-app/data/world_simple_employment.rds")
+saveRDS(world_simple_employment, 
+        file = "shiny-app/data/world_simple_employment.rds")
 
-# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
+# Now, world_simple_comm has an updated data table AND the polygons, and can be
+# used in leaflet:
 
 # IN SERVER
 
-binpal <- colorBin("Reds", world_simple_employment$mean_percentage_total, 9, pretty = FALSE)
+binpal <- colorBin("Reds", world_simple_employment$mean_percentage_total, 
+                   9, 
+                   pretty = FALSE)
+
+# Here I used bin because there were a bunch of values (from 0 to 100), but not
+# so many that we'd need a continuous scale. I thought this was the best because
+# it allows us to see the countries and also to pair together countries with a
+# similar percentage.
   
-map_employment <- leaflet(world_simple_employment) %>%
+map_employment <- leaflet(world_simple_employment, width = 1000, height = 1000) %>%
   addPolygons(stroke = FALSE, smoothFactor = 1, fillOpacity = 1,
     color = ~binpal(mean_percentage_total)) %>%
   addProviderTiles(providers$CartoDB.Positron)
@@ -347,10 +454,18 @@ PAGE 3, health:
 gender_indicators_health_graph <- gender_indicators_health %>%
   rename(country = "Country Name") %>%
   rename(ISO3 = "Country Code") %>%
-  pivot_longer(cols = year_2011:year_2018, names_to = "year", values_to = "percentage") %>%
+  pivot_longer(cols = year_2011:year_2018, 
+               names_to = "year", 
+               values_to = "percentage") %>%
+  
+  # Here I had to take a pre-existing dataset that had asked people questions
+  # about who is responssible for their health, and put it into this year by
+  # year and person by person context.
+  
   filter(percentage != "..") %>%
   select(-c("Series Code", "2019 [YR2019]", "2020 [YR2020]"))
-  gender_indicators_health_graph$percentage <- as.double(gender_indicators_health_graph$percentage) 
+  gender_indicators_health_graph$percentage <- 
+    as.double(gender_indicators_health_graph$percentage) 
   
 gender_health_graph <- gender_indicators_health_graph %>%
   group_by(country, year, health_decision_maker) %>%
@@ -359,6 +474,11 @@ gender_health_graph <- gender_indicators_health_graph %>%
   left_join(country_by_continent, by = "ISO3") %>%
   mutate(communist = ifelse(year_first !=  "0", TRUE, FALSE)) %>%
   filter(Continent_Name == "Asia")
+
+# Okay, I decided to do just Asia completely for convenience purposes. I thought
+# it s a pretty diverse continent with both post-comm and never-comm countries,
+# so it was a good example. Doing the whole world could be too much and hard to
+# separate other variables.
   
 saveRDS(gender_health_graph, file = "shiny-app/data/gender_health_graph.rds") 
 
@@ -366,6 +486,12 @@ gender_health_graph %>%
   ggplot(aes(x = reorder(country, percentage), y = percentage, color = communist)) +
   geom_point() +
   facet_wrap(~health_decision_maker) +
+  
+# I divided the plot into 4, depending on who makes the decisions regarding
+# health for a woman. Most of them are husband, but also members of the family
+# (other). Someone else is the the most rare, because most people don't have
+# strangers care for their health.
+  
     scale_x_reordered() +
     theme_linedraw() +
     theme(panel.grid.major = element_line(color = "lightgrey"),
@@ -388,6 +514,11 @@ PAGE 4, Eduacation:
 post_comm_list %>%
   rename("year" = 'year...1') %>%
   filter(year == 2018) %>%
+  
+  # Here I just tried a random year again, say 2018, to see whether my data
+  # changes from year to year. There are slight variations but nothing
+  # significant.
+  
   ggplot(aes(x = post_comm, y = womenpar, color = post_comm)) +
   geom_boxplot() +
   scale_x_reordered() +
@@ -396,9 +527,14 @@ post_comm_list %>%
         panel.grid.minor = element_line(color = "lightgrey"),
         panel.background = element_rect(fill = "white"),
         panel.border = element_rect(color = "grey", fill = NA)) +
+  
+  # I've been using the same theme all around for the purpose of making some
+  # coherent looking shiny.
+  
   scale_color_discrete(name = "Communist Status", 
                        labels = c("Never Communist", "Post-Communist"))+
-    labs(title = "Women in Parliament: Never Communist v. Post- Communist Countries", 
+    labs(title = "Women in Parliament: Never Communist v. 
+         Post- Communist Countries", 
           x = "OECD Countries", 
           y = "Percentage of Women in Parliament", 
           caption = "\n  \n Source: CPDS") +
@@ -409,6 +545,9 @@ post_comm_list %>%
 NOT USED: 
 
 ```{r}
+
+# The graphs below have not been used in my project (I decided they were not
+# necessary/ didn't add anything new to the story)
 
 map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
   distinct(country, .keep_all = TRUE)%>%
@@ -423,7 +562,9 @@ map_post_comm <- readRDS(file = "shiny-app/data/post_comm_list.rds") %>%
   distinct(country, .keep_all = TRUE) %>%
   rename(ISO3 = "iso")
 
-# In your previous code, you assigned only the data table from wrld_smpl to world_simple_comm. You need the data table and the polygons! So, first create an identical copy of wrld_simpl:
+# In your previous code, you assigned only the data table from wrld_smpl to
+# world_simple_comm. You need the data table and the polygons! So, first create
+# an identical copy of wrld_simpl:
 
 world_simple_comm <- wrld_simpl
 
@@ -432,12 +573,13 @@ world_simple_comm <- wrld_simpl
 world_simple_comm@data <- world_simple_comm@data %>%
   left_join(map_post_comm, by = "ISO3")
 
-# Now, world_simple_comm has an updated data table AND the polygons, and can be used in leaflet:
+# Now, world_simple_comm has an updated data table AND the polygons, and can be
+# used in leaflet:
 
 
   binpal <- colorBin("Blues", world_simple_comm$gov_right1, 6, pretty = FALSE)
   
-map <- leaflet(world_simple_comm) %>%
+map <- leaflet(world_simple_comm, width = 1000, height = 1000) %>%
   addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
     color = ~binpal(gov_right1)) %>%
   addProviderTiles(providers$CartoDB.Positron)
@@ -458,7 +600,10 @@ employment_female %>%
   # This filters the Entity column to find all names that start with a capital
   # B. str_detect is part of the stringr package.
   
-ggplot(mapping = aes(x = reorder_within(Entity, within = avg, by = avg), y = avg)) +
+ggplot(mapping = aes(x = reorder_within(Entity, 
+                                        within = avg, 
+                                        by = avg), 
+                     y = avg)) +
   geom_point() +
   scale_x_reordered() +
     theme_linedraw() +

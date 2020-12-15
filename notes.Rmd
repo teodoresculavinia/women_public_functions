@@ -485,3 +485,38 @@ gender_health_graph %>%
 
 ```
 
+
+```{r}
+output$parliament2Plot <- renderPlot({
+      
+      
+      post_comm_list %>%
+        rename("year" = 'year...1') %>%
+        filter(year == 2018) %>%
+        
+        # I ended up keeping the year 2018 overall, because it is the most
+        # recent year from which we have complete data.
+        
+        ggplot(aes(x = post_comm, y = womenpar, color = post_comm)) +
+        
+        # Here I devided the plot into two - countries that are post-communist
+        # and countries that have never been communist. I did "free_x" to get 
+        # a better represenantation andd better space on the x axis.
+        
+        geom_boxplot() +
+        scale_x_reordered() +
+        theme_linedraw() +
+        theme(panel.grid.major = element_line(color = "lightgrey"),
+              panel.grid.minor = element_line(color = "lightgrey"),
+              panel.background = element_rect(fill = "white"),
+              panel.border = element_rect(color = "grey", fill = NA)) +
+        scale_color_discrete(name = "Communist Status", 
+                             labels = c("Never Communist", "Post-Communist"))+
+        labs(title = "Women in Parliament: Never Communist v. 
+             Post- Communist Countries", 
+             x = "OECD Countries", 
+             y = "Percentage of Women in Parliament", 
+             caption = "\n  \n Source: CPDS") +
+        theme(axis.text.x = element_text(angle=30))})
+```
+
